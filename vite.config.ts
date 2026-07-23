@@ -5,6 +5,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 // Rule 4: everything is bundled and local. The PWA plugin precaches the
 // entire build output so the app works fully offline after first load.
 export default defineConfig({
+  // Served from GitHub Pages at /<repo-name>/.
+  base: '/MyFashionDesigns/',
   plugins: [
     react(),
     VitePWA({
