@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 
 // Icon-first UI, minimum 44pt tap targets (§7 accessibility).
 
@@ -33,12 +33,35 @@ export function IconButton(props: {
   )
 }
 
+/**
+ * Touch-tap ghost-click guard. On touch devices the tap that OPENS an
+ * overlay is followed a few ms later by a synthesized compatibility `click`,
+ * hit-tested against whatever is under the finger by then — i.e. the newly
+ * mounted overlay. Without this, popups flash open and instantly close (or a
+ * button that mounted under the finger gets pressed). We swallow clicks for
+ * a short window after mount; overlay dismissal uses pointerdown, which
+ * ghost clicks never produce.
+ */
+export function useGhostClickGuard(active: boolean) {
+  const openedAt = useRef(0)
+  useEffect(() => {
+    if (active) openedAt.current = performance.now()
+  }, [active])
+  return (e: React.MouseEvent) => {
+    if (performance.now() - openedAt.current < 250) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+  }
+}
+
 export function Sheet(props: { open: boolean; onClose: () => void; children: ReactNode; side?: 'bottom' | 'right' }) {
+  const guard = useGhostClickGuard(props.open)
   if (!props.open) return null
   const side = props.side ?? 'bottom'
   return (
-    <div className="fixed inset-0 z-40" role="dialog">
-      <div className="absolute inset-0 bg-ink/30" onClick={props.onClose} />
+    <div className="fixed inset-0 z-40" role="dialog" onClickCapture={guard}>
+      <div className="absolute inset-0 bg-ink/30" onPointerDown={props.onClose} />
       <div
         className={
           side === 'bottom'
@@ -53,10 +76,11 @@ export function Sheet(props: { open: boolean; onClose: () => void; children: Rea
 }
 
 export function Modal(props: { open: boolean; onClose: () => void; children: ReactNode }) {
+  const guard = useGhostClickGuard(props.open)
   if (!props.open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog">
-      <div className="absolute inset-0 bg-ink/40" onClick={props.onClose} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" onClickCapture={guard}>
+      <div className="absolute inset-0 bg-ink/40" onPointerDown={props.onClose} />
       <div className="relative bg-paper rounded-3xl p-5 shadow-2xl w-full max-w-sm">{props.children}</div>
     </div>
   )

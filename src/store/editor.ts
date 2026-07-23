@@ -135,8 +135,11 @@ export const useEditor = create<EditorState>((set, get) => {
     },
 
     openDesign(design) {
+      // Prune empty items left behind by abandoned region sessions (e.g. the
+      // app was closed before Done) so they don't clutter region popovers.
+      const cleaned = { ...design, items: design.items.filter((it) => it.strokes.length > 0) }
       set({
-        design, mode: 'board', activeRegionId: null, activeItemId: null,
+        design: cleaned, mode: 'board', activeRegionId: null, activeItemId: null,
         optionsRegion: null, adjustItemId: null, layersOpen: false,
         undoStack: [], redoStack: []
       })

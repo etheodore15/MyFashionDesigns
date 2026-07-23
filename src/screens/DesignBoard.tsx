@@ -9,7 +9,7 @@ import ColourPicker from '../components/ColourPicker'
 import LayersPanel from '../components/LayersPanel'
 import AdjustPanel from '../components/AdjustPanel'
 import WholeFigurePreview from '../components/WholeFigurePreview'
-import { IconButton, Sheet } from './../components/ui'
+import { IconButton, Sheet, useGhostClickGuard } from './../components/ui'
 import { useEditor } from '../store/editor'
 import { useApp } from '../store/app'
 import { composeDesign } from '../drawing/compose'
@@ -42,6 +42,7 @@ export default function DesignBoard() {
 
   const [adapter, setAdapter] = useState<FigureAdapter | null>(null)
   const [popover, setPopover] = useState<Popover | null>(null)
+  const popoverGuard = useGhostClickGuard(popover !== null)
   const [colourOpen, setColourOpen] = useState(false)
   const [tutorialOffer, setTutorialOffer] = useState<string | null>(null)
   const offeredRef = useRef(false)
@@ -172,14 +173,14 @@ export default function DesignBoard() {
 
       {/* Region popover: existing items or new drawing */}
       {popover && (
-        <div className="fixed inset-0 z-40" onClick={() => setPopover(null)}>
+        <div className="fixed inset-0 z-40" onClickCapture={popoverGuard} onPointerDown={() => setPopover(null)}>
           <div
             className="absolute bg-white rounded-3xl shadow-2xl border border-ink/10 p-2 flex flex-col gap-1.5 min-w-44"
             style={{
               left: Math.min(popover.x, window.innerWidth - 200),
               top: Math.min(popover.y, window.innerHeight - 90 - popoverItems.length * 56)
             }}
-            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <button
               type="button"
