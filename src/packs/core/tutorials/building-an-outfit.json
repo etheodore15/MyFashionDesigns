@@ -1,0 +1,22 @@
+{
+  "id": "building-an-outfit",
+  "title": "Building an outfit",
+  "badge": "🧥",
+  "order": 2,
+  "requires": "first-design",
+  "unlocksTools": ["layers", "mirror"],
+  "unlocksTutorial": null,
+  "steps": [
+    { "id": "welcome", "icon": "🧵", "text": "Time to build a whole outfit!", "waitFor": { "event": "next" } },
+    { "id": "tap-torso", "icon": "👆", "text": "Tap the tummy", "target": { "type": "region", "id": "torso" }, "waitFor": { "event": "region-opened", "region": "torso" } },
+    { "id": "pick-top", "icon": "👚", "text": "Pick a Top", "target": { "type": "dom", "key": "category-top" }, "waitFor": { "event": "item-created" } },
+    { "id": "draw-top", "icon": "✏️", "text": "Draw a top", "waitFor": { "event": "stroke-added", "count": 3 } },
+    { "id": "done-top", "icon": "✅", "text": "Tap the tick", "target": { "type": "dom", "key": "region-done" }, "waitFor": { "event": "item-finished" } },
+    { "id": "tap-hips", "icon": "👆", "text": "Now tap the hips", "target": { "type": "region", "id": "hips" }, "waitFor": { "event": "region-opened", "region": "hips" } },
+    { "id": "pick-bottom", "icon": "💃", "text": "Pick a Skirt or Trousers", "waitFor": { "event": "item-created" } },
+    { "id": "draw-bottom", "icon": "✏️", "text": "Draw it! See how it sits over the top or under it?", "waitFor": { "event": "stroke-added", "count": 3 } },
+    { "id": "done-bottom", "icon": "✅", "text": "Tap the tick", "target": { "type": "dom", "key": "region-done" }, "waitFor": { "event": "item-finished" } },
+    { "id": "layers", "icon": "🥞", "text": "Open the Layers panel to see your outfit stack up", "target": { "type": "dom", "key": "layers-btn" }, "waitFor": { "event": "layers-opened" } },
+    { "id": "hooray", "icon": "🎉", "text": "Brilliant! You can drag layers to change what sits on top.", "waitFor": { "event": "next" } }
+  ]
+}

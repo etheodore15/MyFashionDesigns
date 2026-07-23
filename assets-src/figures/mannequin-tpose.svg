@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="2048" viewBox="0 0 1024 2048">
+  <!--
+    Your Drawings Real Life — Figure #1 "Standing Figure" (mannequin, T-pose).
+    Hand-drawn fashion technical flat: ink outline with varying weight,
+    dashed construction/seam lines, no shading. The whole figure is drawn
+    once in this file and sliced into per-region parts by scripts/build-figures.mjs
+    (each part group is rendered alone onto the identical 1024x2048 canvas).
+  -->
+  <defs>
+    <filter id="handwobble" x="-6%" y="-6%" width="112%" height="112%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.011" numOctaves="2" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <style>
+      .skin { fill:#ddd5cc; stroke:none; }
+      .ink  { fill:none; stroke:#332d28; stroke-linecap:round; stroke-linejoin:round; }
+      .w1 { stroke-width:3.4; }
+      .w2 { stroke-width:4.6; }
+      .w3 { stroke-width:6.2; }
+      .seam { fill:none; stroke:#7a7067; stroke-width:2.6; stroke-dasharray:11 9; stroke-linecap:round; }
+    </style>
+  </defs>
+  <g filter="url(#handwobble)">
+
+    <g id="part-legs-lower" class="part">
+      <path class="skin" d="M382 1466 C 368 1560 376 1700 398 1820 C 400 1832 407 1838 416 1838 L 452 1838 C 461 1838 468 1831 469 1820 C 483 1690 487 1566 482 1466 L 382 1466 Z"/>
+      <path class="ink w2" d="M383 1470 C 369 1560 377 1700 398 1820"/>
+      <path class="ink w1" d="M481 1470 C 486 1566 482 1690 469 1818"/>
+      <path class="seam" d="M392 1808 C 414 1818 442 1818 464 1808"/>
+      <path class="skin" d="M642 1466 C 656 1560 648 1700 626 1820 C 624 1832 617 1838 608 1838 L 572 1838 C 563 1838 556 1831 555 1820 C 541 1690 537 1566 542 1466 L 642 1466 Z"/>
+      <path class="ink w2" d="M641 1470 C 655 1560 647 1700 626 1820"/>
+      <path class="ink w1" d="M543 1470 C 538 1566 542 1690 555 1818"/>
+      <path class="seam" d="M632 1808 C 610 1818 582 1818 560 1808"/>
+    </g>
+
+    <g id="part-legs-upper" class="part">
+      <path class="skin" d="M350 1024 C 344 1160 354 1330 378 1484 C 380 1496 388 1502 398 1502 L 466 1502 C 476 1502 484 1494 486 1482 C 496 1350 505 1190 508 1066 C 460 1082 396 1068 350 1024 Z"/>
+      <path class="ink w3" d="M351 1032 C 345 1160 355 1330 378 1486"/>
+      <path class="ink w1" d="M506 1072 C 503 1190 495 1350 485 1482"/>
+      <path class="seam" d="M390 1478 C 416 1490 448 1490 476 1478"/>
+      <path class="skin" d="M674 1024 C 680 1160 670 1330 646 1484 C 644 1496 636 1502 626 1502 L 558 1502 C 548 1502 540 1494 538 1482 C 528 1350 519 1190 516 1066 C 564 1082 628 1068 674 1024 Z"/>
+      <path class="ink w3" d="M673 1032 C 679 1160 669 1330 646 1486"/>
+      <path class="ink w1" d="M518 1072 C 521 1190 529 1350 539 1482"/>
+      <path class="seam" d="M634 1478 C 608 1490 576 1490 548 1478"/>
+    </g>
+
+    <g id="part-foot-left" class="part">
+      <path class="skin" d="M620 1812 L 558 1812 C 556 1844 552 1866 544 1884 C 538 1898 548 1910 566 1912 L 644 1912 C 662 1910 669 1896 660 1884 C 642 1862 628 1840 620 1812 Z"/>
+      <path class="ink w2" d="M620 1812 C 628 1840 642 1862 660 1884 C 669 1896 662 1910 644 1912 L 566 1912 C 548 1910 538 1898 544 1884 C 552 1866 556 1844 558 1812"/>
+      <path class="seam" d="M648 1886 C 636 1876 626 1862 620 1846"/>
+    </g>
+
+    <g id="part-foot-right" class="part">
+      <path class="skin" d="M404 1812 L 466 1812 C 468 1844 472 1866 480 1884 C 486 1898 476 1910 458 1912 L 380 1912 C 362 1910 355 1896 364 1884 C 382 1862 396 1840 404 1812 Z"/>
+      <path class="ink w2" d="M404 1812 C 396 1840 382 1862 364 1884 C 355 1896 362 1910 380 1912 L 458 1912 C 476 1910 486 1898 480 1884 C 472 1866 468 1844 466 1812"/>
+      <path class="seam" d="M376 1886 C 388 1876 398 1862 404 1846"/>
+    </g>
+
+    <g id="part-hips" class="part">
+      <path class="skin" d="M372 888 L 652 888 C 676 922 688 962 686 1002 C 684 1044 646 1072 598 1074 L 426 1074 C 378 1072 340 1044 338 1002 C 336 962 348 922 372 888 Z"/>
+      <path class="ink w2" d="M372 890 C 348 922 336 962 338 1002 C 340 1044 378 1072 426 1074"/>
+      <path class="ink w3" d="M652 890 C 676 922 688 962 686 1002 C 684 1044 646 1072 598 1074"/>
+      <path class="ink w1" d="M426 1074 C 456 1080 472 1078 490 1070"/>
+      <path class="ink w1" d="M598 1074 C 568 1080 552 1078 534 1070"/>
+      <path class="seam" d="M344 984 C 440 1000 584 1000 680 984"/>
+      <path class="seam" d="M512 890 L 512 1068"/>
+    </g>
+
+    <g id="part-waist" class="part">
+      <path class="skin" d="M380 798 L 644 798 C 646 834 648 866 654 902 L 370 902 C 376 866 378 834 380 798 Z"/>
+      <path class="ink w1" d="M381 802 C 379 838 376 868 370 900"/>
+      <path class="ink w2" d="M643 802 C 645 838 648 868 654 900"/>
+      <path class="seam" d="M374 852 C 460 866 564 866 650 852"/>
+      <path class="seam" d="M512 800 L 512 900"/>
+    </g>
+
+    <g id="part-torso" class="part">
+      <path class="skin" d="M318 520 L 706 520 C 708 604 696 668 672 726 C 654 770 646 792 642 816 L 382 816 C 378 792 370 770 352 726 C 328 668 316 604 318 520 Z"/>
+      <path class="ink w2" d="M320 536 C 322 640 344 720 368 780 C 374 796 379 806 382 814"/>
+      <path class="ink w3" d="M704 536 C 702 640 680 720 656 780 C 650 796 645 806 642 814"/>
+      <path class="seam" d="M512 522 L 512 814"/>
+      <path class="seam" d="M352 640 C 440 662 584 662 672 640"/>
+      <path class="seam" d="M430 524 C 420 620 430 720 444 812"/>
+      <path class="seam" d="M594 524 C 604 620 594 720 580 812"/>
+    </g>
+
+    <g id="part-shoulders" class="part">
+      <path class="skin" d="M512 438 C 566 438 638 452 692 478 C 702 484 704 506 700 542 L 324 542 C 320 506 322 484 332 478 C 386 452 458 438 512 438 Z"/>
+      <path class="ink w2" d="M332 478 C 386 452 458 438 512 438 C 566 438 638 452 692 478"/>
+      <path class="seam" d="M468 448 L 338 478"/>
+      <path class="seam" d="M556 448 L 686 478"/>
+    </g>
+
+    <g id="part-neck" class="part">
+      <path class="skin" d="M474 336 C 473 380 469 414 456 448 L 568 448 C 555 414 551 380 550 336 C 538 352 486 352 474 336 Z"/>
+      <path class="ink w1" d="M474 338 C 473 380 469 414 456 446"/>
+      <path class="ink w2" d="M550 338 C 551 380 555 414 568 446"/>
+      <path class="seam" d="M462 442 C 496 454 528 454 562 442"/>
+    </g>
+
+    <g id="part-head" class="part">
+      <path class="skin" d="M512 74 C 594 76 649 140 645 232 C 642 300 604 352 542 362 C 522 365 502 365 483 362 C 421 352 382 300 379 232 C 375 140 430 76 512 74 Z"/>
+      <path class="ink w2" d="M512 74 C 594 76 649 140 645 232 C 642 300 604 352 542 362 C 522 365 502 365 483 362 C 421 352 382 300 379 232 C 375 140 430 76 512 74 Z"/>
+      <path class="ink w3" d="M645 232 C 642 300 604 352 542 362"/>
+      <path class="seam" d="M512 88 L 512 356"/>
+      <path class="seam" d="M398 224 C 470 212 554 212 626 224"/>
+    </g>
+
+    <g id="part-arm-right" class="part">
+      <path class="skin" d="M340 452 C 288 492 234 548 196 600 C 158 652 124 690 100 716 L 126 744 C 148 718 180 686 216 646 C 246 612 282 574 322 542 C 330 512 336 480 340 452 Z"/>
+      <path class="ink w3" d="M340 454 C 288 492 234 548 196 600 C 158 652 124 690 100 716"/>
+      <path class="ink w1" d="M322 544 C 282 576 246 612 216 646 C 180 686 148 718 126 744"/>
+      <path class="ink w1" d="M100 716 L 126 744"/>
+      <path class="seam" d="M196 622 C 212 632 228 638 244 634"/>
+    </g>
+
+    <g id="part-arm-left" class="part">
+      <path class="skin" d="M684 452 C 736 492 790 548 828 600 C 866 652 900 690 924 716 L 898 744 C 876 718 844 686 808 646 C 778 612 742 574 702 542 C 694 512 688 480 684 452 Z"/>
+      <path class="ink w3" d="M684 454 C 736 492 790 548 828 600 C 866 652 900 690 924 716"/>
+      <path class="ink w1" d="M702 544 C 742 576 778 612 808 646 C 844 686 876 718 898 744"/>
+      <path class="ink w1" d="M924 716 L 898 744"/>
+      <path class="seam" d="M828 622 C 812 632 796 638 780 634"/>
+    </g>
+
+    <g id="part-hand-right" class="part">
+      <path class="skin" d="M104 710 C 80 734 60 762 50 790 C 42 812 52 830 72 828 C 94 826 116 806 132 780 C 140 766 142 750 134 742 C 124 732 114 720 104 710 Z"/>
+      <path class="ink w2" d="M104 710 C 80 734 60 762 50 790 C 42 812 52 830 72 828 C 94 826 116 806 132 780 C 140 766 142 750 134 742 C 124 732 114 720 104 710 Z"/>
+      <path class="ink w1" d="M112 752 C 100 764 90 778 84 794"/>
+    </g>
+
+    <g id="part-hand-left" class="part">
+      <path class="skin" d="M920 710 C 944 734 964 762 974 790 C 982 812 972 830 952 828 C 930 826 908 806 892 780 C 884 766 882 750 890 742 C 900 732 910 720 920 710 Z"/>
+      <path class="ink w2" d="M920 710 C 944 734 964 762 974 790 C 982 812 972 830 952 828 C 930 826 908 806 892 780 C 884 766 882 750 890 742 C 900 732 910 720 920 710 Z"/>
+      <path class="ink w1" d="M912 752 C 924 764 934 778 940 794"/>
+    </g>
+
+  </g>
+</svg>

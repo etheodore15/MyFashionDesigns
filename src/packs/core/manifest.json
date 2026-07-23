@@ -1,0 +1,31 @@
+{
+  "id": "core",
+  "name": "Starter Studio",
+  "free": true,
+  "figures": ["mannequin-tpose", "bust-form"],
+  "skinTones": [
+    "#f6e3d4", "#f1d3b7", "#eac198", "#ddab7e",
+    "#cf9668", "#c08152", "#a96c42", "#916037",
+    "#7a4f2d", "#634024", "#4e321c", "#3a2515"
+  ],
+  "swatches": [
+    "#2b2b2b", "#ffffff", "#e63946", "#f77f00",
+    "#fcbf49", "#8ac926", "#2a9d8f", "#219ebc",
+    "#3a5ba0", "#7b2cbf", "#e86fa4", "#9c6644"
+  ],
+  "frames": [
+    { "id": "none", "label": "No frame", "icon": "🖼" },
+    { "id": "plain", "label": "Plain", "icon": "⬜" },
+    { "id": "sketchbook", "label": "Sketchbook", "icon": "📒" }
+  ],
+  "backdrops": [
+    { "id": "none", "type": "none", "label": "None", "colours": [] },
+    { "id": "cream", "type": "plain", "label": "Cream", "colours": ["#faf4e8"] },
+    { "id": "blush", "type": "plain", "label": "Blush", "colours": ["#fbe4ec"] },
+    { "id": "mint", "type": "plain", "label": "Mint", "colours": ["#e2f4e8"] },
+    { "id": "sky", "type": "gradient", "label": "Sky", "colours": ["#cfe8ff", "#f5fbff"] },
+    { "id": "sunset", "type": "gradient", "label": "Sunset", "colours": ["#ffd6a5", "#fdb0c0"] },
+    { "id": "lavender", "type": "gradient", "label": "Lavender", "colours": ["#e6dcff", "#f8f4ff"] }
+  ],
+  "tutorials": ["first-design", "building-an-outfit"]
+}

@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "taxonomyVersion": 1,
+  "id": "bust-form",
+  "name": "Bust",
+  "canvas": {
+    "width": 1024,
+    "height": 2048
+  },
+  "skinTonePart": null,
+  "skeleton": null,
+  "parts": [
+    {
+      "regionId": "torso",
+      "file": "parts/torso.png",
+      "zIndex": 10,
+      "bounds": {
+        "x": 0.2168,
+        "y": 0.4482,
+        "w": 0.5664,
+        "h": 0.5088
+      },
+      "padding": 0.06,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "waist",
+          "x": 0.5,
+          "y": 0.727
+        }
+      ]
+    },
+    {
+      "regionId": "shoulders",
+      "file": "parts/shoulders.png",
+      "zIndex": 12,
+      "bounds": {
+        "x": 0.2168,
+        "y": 0.3774,
+        "w": 0.5664,
+        "h": 0.0815
+      },
+      "padding": 0.06,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "shoulder",
+          "x": 0.24,
+          "y": 0.41
+        },
+        {
+          "id": "shoulder",
+          "x": 0.76,
+          "y": 0.41
+        },
+        {
+          "id": "neck",
+          "x": 0.5,
+          "y": 0.385
+        }
+      ]
+    },
+    {
+      "regionId": "neck",
+      "file": "parts/neck.png",
+      "zIndex": 14,
+      "bounds": {
+        "x": 0.4141,
+        "y": 0.2974,
+        "w": 0.1729,
+        "h": 0.0903
+      },
+      "padding": 0.06,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "neck",
+          "x": 0.5,
+          "y": 0.385
+        }
+      ]
+    },
+    {
+      "regionId": "head",
+      "file": "parts/head.png",
+      "zIndex": 16,
+      "bounds": {
+        "x": 0.2939,
+        "y": 0.0908,
+        "w": 0.4141,
+        "h": 0.2246
+      },
+      "padding": 0.05,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "neck",
+          "x": 0.5,
+          "y": 0.3
+        }
+      ]
+    }
+  ]
+}

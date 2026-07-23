@@ -1,0 +1,17 @@
+{
+  "id": "first-design",
+  "title": "Your first design",
+  "badge": "🌟",
+  "order": 1,
+  "requires": null,
+  "unlocksTools": ["pencil", "eraser", "colour"],
+  "unlocksTutorial": "building-an-outfit",
+  "steps": [
+    { "id": "welcome", "icon": "👋", "text": "Let's make your first design!", "waitFor": { "event": "next" } },
+    { "id": "tap-head", "icon": "👆", "text": "Tap the head", "target": { "type": "region", "id": "head" }, "waitFor": { "event": "region-opened", "region": "head" } },
+    { "id": "pick-hair", "icon": "💇", "text": "Pick Hair", "target": { "type": "dom", "key": "category-hair" }, "waitFor": { "event": "item-created" } },
+    { "id": "draw-hair", "icon": "✏️", "text": "Draw a hairstyle — right on the figure!", "waitFor": { "event": "stroke-added", "count": 3 } },
+    { "id": "done", "icon": "✅", "text": "Tap the big tick when you're happy", "target": { "type": "dom", "key": "region-done" }, "waitFor": { "event": "item-finished" } },
+    { "id": "hooray", "icon": "🎉", "text": "You did it! Your drawing stays right there — tap it any time to keep drawing.", "waitFor": { "event": "next" } }
+  ]
+}
