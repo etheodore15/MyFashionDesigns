@@ -467,10 +467,12 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow }: Prop
         d.tapStart = { x: e.clientX, y: e.clientY }
         return
       }
-      // Region mode.
+      // Region mode. Any pointer-down starts a stroke; points are clamped to
+      // the drawable region rect so the child always gets visible feedback —
+      // ink lands at the box edge instead of silently vanishing. (The dimmed
+      // surround stays non-drawable, §5.)
       if (state.eyedropper) return // handled on tap-up
       if (state.tool === 'fill') return // handled on tap-up
-      if (!insideRect(fig)) return
       const p = toLocal(fig)
       if (!p) return
       if (SHAPE_TOOLS.includes(state.tool)) {
@@ -557,7 +559,7 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow }: Prop
         return
       }
       if (state.tool === 'fill') {
-        if (insideRect(fig, 0)) {
+        if (insideRect(fig, 0.05)) {
           const p = toLocal(fig)
           if (p) state.addStroke([p], 'fill', state.strokeWidthFor(drawRef.current.rect?.h ?? 1))
         }

@@ -19,6 +19,8 @@ interface LoadedPart {
 const ALPHA_W = 128
 const ALPHA_H = 256
 const ALPHA_THRESHOLD = 24
+/** Tap tolerance in alpha-map cells (each cell ≈ 8 figure px). */
+const HIT_RADIUS = 5
 
 const VIRTUAL_REGIONS: RegionId[] = ['whole-body', 'background']
 
@@ -100,9 +102,22 @@ export class RasterFigureAdapter implements FigureAdapter {
     const px = Math.min(ALPHA_W - 1, Math.floor(x * ALPHA_W))
     const py = Math.min(ALPHA_H - 1, Math.floor(y * ALPHA_H))
     // Topmost part above the alpha threshold, in reverse z-order (§3).
-    for (let i = this.parts.length - 1; i >= 0; i--) {
-      if (this.parts[i].alpha[py * ALPHA_W + px] > ALPHA_THRESHOLD) {
-        return this.parts[i].desc.regionId
+    // Fingers are not pixels: search outward in rings so thin parts (arms)
+    // and small parts (hands) register on a near-miss tap. The nearest hit
+    // wins; z-order breaks ties within a ring.
+    for (let r = 0; r <= HIT_RADIUS; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
+          const sx = px + dx
+          const sy = py + dy
+          if (sx < 0 || sy < 0 || sx >= ALPHA_W || sy >= ALPHA_H) continue
+          for (let i = this.parts.length - 1; i >= 0; i--) {
+            if (this.parts[i].alpha[sy * ALPHA_W + sx] > ALPHA_THRESHOLD) {
+              return this.parts[i].desc.regionId
+            }
+          }
+        }
       }
     }
     return null
