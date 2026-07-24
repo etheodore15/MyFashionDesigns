@@ -15,7 +15,7 @@ const SHAPES: { kind: StrokeTool; icon: string; label: string }[] = [
   { kind: 'heart', icon: '❤', label: 'Heart' }
 ]
 
-export default function ToolRail(props: { onOpenColour: () => void; onDone: () => void }) {
+export default function ToolRail(props: { onOpenColour: () => void; onDone: () => void; onCollapse: () => void }) {
   const tool = useEditor((s) => s.tool)
   const setTool = useEditor((s) => s.setTool)
   const colour = useEditor((s) => s.colour)
@@ -37,6 +37,7 @@ export default function ToolRail(props: { onOpenColour: () => void; onDone: () =
 
   return (
     <div className="flex flex-col gap-2 items-center py-2 px-1.5 bg-white/85 backdrop-blur rounded-3xl shadow-lg border border-ink/10 max-h-full overflow-y-auto">
+      <IconButton icon="⇥" label="Tuck toolbar away" onClick={props.onCollapse} className="!h-8 !text-base opacity-60" />
       <IconButton icon="✏️" label="Pencil" active={tool === 'pencil'} onClick={() => setTool('pencil')} />
       {hasTool('marker') && (
         <IconButton icon="🖊️" label="Marker" active={tool === 'marker'} onClick={() => setTool('marker')} />

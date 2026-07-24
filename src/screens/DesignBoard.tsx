@@ -44,6 +44,7 @@ export default function DesignBoard() {
   const [popover, setPopover] = useState<Popover | null>(null)
   const popoverGuard = useGhostClickGuard(popover !== null)
   const [colourOpen, setColourOpen] = useState(false)
+  const [railTucked, setRailTucked] = useState(false)
   const [tutorialOffer, setTutorialOffer] = useState<string | null>(null)
   const offeredRef = useRef(false)
 
@@ -143,17 +144,33 @@ export default function DesignBoard() {
             adapter={adapter}
             onRegionTap={onRegionTap}
             hotspotGlow={(profile?.preferences.hotspotGlow ?? true) && mode === 'board'}
+            insetLeft={mode === 'region' && !railTucked && handedness === 'left' ? 84 : 0}
+            insetRight={mode === 'region' && !railTucked && handedness === 'right' ? 84 : 0}
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-4xl animate-pulse">🧵</div>
         )}
 
-        {/* S6 overlays */}
+        {/* S6 overlays. The canvas reserves an inset for the rail so it never
+            covers the region being drawn; it can also be tucked away fully. */}
         {mode === 'region' && adapter && (
           <>
-            <div className={`absolute top-2 bottom-2 ${handedness === 'right' ? 'right-2' : 'left-2'} z-20 flex items-center`}>
-              <ToolRail onOpenColour={() => setColourOpen(true)} onDone={finishRegion} />
-            </div>
+            {!railTucked ? (
+              <div className={`absolute top-2 bottom-2 ${handedness === 'right' ? 'right-2' : 'left-2'} z-20 flex items-center`}>
+                <ToolRail
+                  onOpenColour={() => setColourOpen(true)}
+                  onDone={finishRegion}
+                  onCollapse={() => setRailTucked(true)}
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                aria-label="Show toolbar"
+                onClick={() => setRailTucked(false)}
+                className={`absolute top-1/2 -translate-y-1/2 ${handedness === 'right' ? 'right-0 rounded-l-2xl' : 'left-0 rounded-r-2xl'} z-20 bg-accent text-white w-8 h-16 shadow-lg text-lg`}
+              >{handedness === 'right' ? '⏴' : '⏵'}</button>
+            )}
             <div className={`absolute top-2 ${handedness === 'right' ? 'left-2' : 'right-2'} z-10`}>
               <WholeFigurePreview adapter={adapter} />
             </div>

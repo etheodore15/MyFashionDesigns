@@ -19,12 +19,19 @@ interface Props {
   adapter: FigureAdapter
   onRegionTap: (region: RegionId | null, screen: { x: number; y: number }) => void
   hotspotGlow: boolean
+  /** Screen inset (px) reserved for the tool rail so fitted content never sits under it. */
+  insetLeft?: number
+  insetRight?: number
 }
 
 const SHAPE_TOOLS: StrokeTool[] = ['line', 'rect', 'ellipse', 'star', 'heart']
 
-export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow }: Props) {
+interface DrawSpace { x0: number; y0: number; x1: number; y1: number }
+
+export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow, insetLeft = 0, insetRight = 0 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const insetRef = useRef({ left: insetLeft, right: insetRight })
+  insetRef.current = { left: insetLeft, right: insetRight }
   const stateRef = useRef<{
     stage: Konva.Stage
     world: Konva.Group
@@ -37,6 +44,9 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow }: Prop
     adjustRect: Konva.Rect
     glowAnim: Konva.Animation | null
     viewAnim: number | null
+    fitScale: number
+    /** Visual (mirror-adjusted) fig-px box of the fitted content, for pan clamping. */
+    fitVRect: { x: number; y: number; w: number; h: number } | null
   } | null>(null)
 
   // Drawing session state (refs — no re-render per pointermove).
@@ -45,10 +55,13 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow }: Prop
     stroke: [number, number, number][] | null
     shapeAnchor: [number, number] | null
     rect: NormalisedRect | null
-    pinch: { dist: number; scale: number; center: { x: number; y: number } } | null
+    /** Region-local bounds ink may reach (rect + generous overflow). */
+    space: DrawSpace | null
+    previewScale: number
+    pinch: { prevDist: number; prevCenter: { x: number; y: number } } | null
     tapStart: { x: number; y: number } | null
     raf: number
-  }>({ pointers: new Map(), stroke: null, shapeAnchor: null, rect: null, pinch: null, tapStart: null, raf: 0 })
+  }>({ pointers: new Map(), stroke: null, shapeAnchor: null, rect: null, space: null, previewScale: 1, pinch: null, tapStart: null, raf: 0 })
 
   // ——— Stage construction ———
   useEffect(() => {
@@ -72,7 +85,8 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow }: Prop
 
     stateRef.current = {
       stage, world, underlayNode, underlayCanvas, itemsGroup, glowGroup,
-      previewNode, previewCanvas: null, adjustRect, glowAnim: null, viewAnim: null
+      previewNode, previewCanvas: null, adjustRect, glowAnim: null, viewAnim: null,
+      fitScale: 1, fitVRect: null
     }
 
     const ro = new ResizeObserver(() => {
@@ -136,7 +150,8 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow }: Prop
     if (!s) return
     const { mode } = useEditor.getState()
     const stage = s.stage
-    const cw = stage.width()
+    const insets = insetRef.current
+    const cw = stage.width() - insets.left - insets.right
     const ch = stage.height()
     if (cw < 4 || ch < 4) return
 
@@ -160,8 +175,10 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow }: Prop
     const rw = rect.w * FIG_W
     const rh = rect.h * FIG_H
     const scale = Math.min((cw / rw), (ch / rh)) * margin
-    const x = (cw - rw * scale) / 2 - vxNorm * FIG_W * scale
+    const x = insets.left + (cw - rw * scale) / 2 - vxNorm * FIG_W * scale
     const y = (ch - rh * scale) / 2 - rect.y * FIG_H * scale
+    s.fitScale = scale
+    s.fitVRect = { x: vxNorm * FIG_W, y: rect.y * FIG_H, w: rw, h: rh }
 
     if (s.viewAnim !== null) {
       cancelAnimationFrame(s.viewAnim)
@@ -233,11 +250,13 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow }: Prop
       }
       const rect = itemRect(adapter, item)
       const rendered = renderItem(item, rect)
+      const ex = rendered.extent
       node.image(rendered.canvas)
-      node.width(rect.w * FIG_W)
-      node.height(rect.h * FIG_H)
-      node.offsetX((rect.w * FIG_W) / 2)
-      node.offsetY((rect.h * FIG_H) / 2)
+      node.width((ex.x1 - ex.x0) * rect.w * FIG_W)
+      node.height((ex.y1 - ex.y0) * rect.h * FIG_H)
+      // Pivot stays at the region-rect centre regardless of stroke overflow.
+      node.offsetX((0.5 - ex.x0) * rect.w * FIG_W)
+      node.offsetY((0.5 - ex.y0) * rect.h * FIG_H)
       node.x((rect.x + rect.w / 2 + item.transform.x) * FIG_W)
       node.y((rect.y + rect.h / 2 + item.transform.y) * FIG_H)
       node.rotation(item.transform.rotation)
@@ -257,29 +276,48 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow }: Prop
   function syncRegionSession() {
     const s = stateRef.current
     if (!s) return
-    const { mode } = useEditor.getState()
+    const { mode, activeRegionId } = useEditor.getState()
     const rect = mode === 'region' ? activeRect() : null
     if (rect) {
-      const rendered = { w: Math.max(2, Math.ceil(rect.w * FIG_W * 2)), h: Math.max(2, Math.ceil(rect.h * FIG_H * 2)) }
+      // Ink may overflow the region rect generously (big hair, long skirts):
+      // the drawable space is the rect plus twice the region's padding on
+      // every side. Points are stored region-local as always — overflow just
+      // means values beyond 0..1 (Rule 2 untouched).
+      const pad = activeRegionId && activeRegionId !== 'background'
+        ? Math.max(0.04, adapter.getPadding(activeRegionId)) : 0
+      const space: DrawSpace = {
+        x0: -(2 * pad) / rect.w,
+        y0: -pad / rect.h,
+        x1: 1 + (2 * pad) / rect.w,
+        y1: 1 + pad / rect.h
+      }
+      const extWpx = (space.x1 - space.x0) * rect.w * FIG_W
+      const extHpx = (space.y1 - space.y0) * rect.h * FIG_H
+      const ps = Math.min(2, Math.max(0.5, 1500 / Math.max(extWpx, extHpx)))
       const canvas = document.createElement('canvas')
-      canvas.width = rendered.w
-      canvas.height = rendered.h
+      canvas.width = Math.max(2, Math.ceil(extWpx * ps))
+      canvas.height = Math.max(2, Math.ceil(extHpx * ps))
       s.previewCanvas = canvas
       s.previewNode.image(canvas)
       s.previewNode.setAttrs({
-        x: rect.x * FIG_W, y: rect.y * FIG_H,
-        width: rect.w * FIG_W, height: rect.h * FIG_H, visible: true
+        x: (rect.x + space.x0 * rect.w) * FIG_W,
+        y: (rect.y + space.y0 * rect.h) * FIG_H,
+        width: extWpx, height: extHpx, visible: true
       })
       s.adjustRect.setAttrs({
-        x: rect.x * FIG_W, y: rect.y * FIG_H,
-        width: rect.w * FIG_W, height: rect.h * FIG_H,
-        visible: true, stroke: '#e86fa4', opacity: 0.55, strokeWidth: 4 / s.stage.scaleX()
+        x: (rect.x + space.x0 * rect.w) * FIG_W,
+        y: (rect.y + space.y0 * rect.h) * FIG_H,
+        width: extWpx, height: extHpx,
+        visible: true, stroke: '#e86fa4', opacity: 0.4, strokeWidth: 3 / s.stage.scaleX()
       })
       drawRef.current.rect = rect
+      drawRef.current.space = space
+      drawRef.current.previewScale = ps
     } else {
       s.previewNode.visible(false)
       s.previewCanvas = null
       drawRef.current.rect = null
+      drawRef.current.space = null
       syncAdjustMarquee()
     }
     s.stage.batchDraw()
@@ -292,10 +330,12 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow }: Prop
     const item = design?.items.find((i) => i.id === adjustItemId)
     if (mode === 'board' && item) {
       const rect = itemRect(adapter, item)
+      const ex = renderItem(item, rect).extent
       s.adjustRect.setAttrs({
-        x: (rect.x + item.transform.x) * FIG_W,
-        y: (rect.y + item.transform.y) * FIG_H,
-        width: rect.w * FIG_W, height: rect.h * FIG_H,
+        x: (rect.x + ex.x0 * rect.w + item.transform.x) * FIG_W,
+        y: (rect.y + ex.y0 * rect.h + item.transform.y) * FIG_H,
+        width: (ex.x1 - ex.x0) * rect.w * FIG_W,
+        height: (ex.y1 - ex.y0) * rect.h * FIG_H,
         visible: true, opacity: 0.9, strokeWidth: 5 / s.stage.scaleX()
       })
     } else if (mode === 'board') {
@@ -375,6 +415,9 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow }: Prop
 
   useEffect(() => { syncGlow() }, [hotspotGlow]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Re-fit when the reserved tool-rail inset changes (rail collapse/expand).
+  useEffect(() => { fitView(true) }, [insetLeft, insetRight]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ——— Pointer handling ———
   useEffect(() => {
     const container = containerRef.current!
@@ -391,11 +434,11 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow }: Prop
     const renderPreview = () => {
       const s = stateRef.current
       const d = drawRef.current
-      if (!s || !s.previewCanvas || !d.rect) return
+      if (!s || !s.previewCanvas || !d.rect || !d.space) return
       const ctx = s.previewCanvas.getContext('2d')!
       ctx.clearRect(0, 0, s.previewCanvas.width, s.previewCanvas.height)
       const state = useEditor.getState()
-      const pixelScale = s.previewCanvas.height / (d.rect.h * FIG_H)
+      const pixelScale = d.previewScale
       const width = state.strokeWidthFor(d.rect.h)
 
       const drawOne = (tool: StrokeTool, pts: [number, number, number][]) => {
@@ -406,7 +449,7 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow }: Prop
           tool === 'marker' ? 0.55 : tool === 'eraser' ? 0.9 : 1,
           pts
         )
-        renderStroke(ctx, preview, pixelScale)
+        renderStroke(ctx, preview, pixelScale, d.space!)
       }
 
       if (d.stroke && d.stroke.length > 0) {
@@ -425,18 +468,12 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow }: Prop
     }
 
     const toLocal = (fig: { x: number; y: number }): [number, number, number] | null => {
-      const rect = drawRef.current.rect
-      if (!rect) return null
+      const { rect, space } = drawRef.current
+      if (!rect || !space) return null
       const lx = (fig.x - rect.x) / rect.w
       const ly = (fig.y - rect.y) / rect.h
-      return [Math.min(1, Math.max(0, lx)), Math.min(1, Math.max(0, ly)), 0.5]
-    }
-
-    const insideRect = (fig: { x: number; y: number }, slack = 0.04): boolean => {
-      const rect = drawRef.current.rect
-      if (!rect) return false
-      return fig.x >= rect.x - rect.w * slack && fig.x <= rect.x + rect.w * (1 + slack) &&
-        fig.y >= rect.y - rect.h * slack && fig.y <= rect.y + rect.h * (1 + slack)
+      // Clamp to the generous drawable space, not the tight rect.
+      return [Math.min(space.x1, Math.max(space.x0, lx)), Math.min(space.y1, Math.max(space.y0, ly)), 0.5]
     }
 
     const onDown = (e: PointerEvent) => {
@@ -454,9 +491,8 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow }: Prop
         renderPreview()
         const [a, b] = [...d.pointers.values()]
         d.pinch = {
-          dist: Math.hypot(a.x - b.x, a.y - b.y),
-          scale: s.stage.scaleX(),
-          center: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+          prevDist: Math.hypot(a.x - b.x, a.y - b.y),
+          prevCenter: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
         }
         return
       }
@@ -492,22 +528,39 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow }: Prop
       d.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
 
       if (d.pinch && d.pointers.size >= 2) {
+        // Incremental pinch-zoom + two-finger pan, anchored to the fingers:
+        // the world point that was under the previous finger centre stays
+        // under the current one. No drift, no jumps, 1:1 with finger motion.
         const [a, b] = [...d.pointers.values()]
         const dist = Math.hypot(a.x - b.x, a.y - b.y)
         const center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
-        const factor = dist / Math.max(1, d.pinch.dist)
-        const newScale = Math.min(d.pinch.scale * 8, Math.max(d.pinch.scale * 0.5, d.pinch.scale * factor))
         const box = container.getBoundingClientRect()
-        const cx = d.pinch.center.x - box.left
-        const cy = d.pinch.center.y - box.top
         const oldScale = s.stage.scaleX()
-        const world = { x: (cx - s.stage.x()) / oldScale, y: (cy - s.stage.y()) / oldScale }
+        const fit = s.fitScale || oldScale
+        let newScale = oldScale * (dist / Math.max(1, d.pinch.prevDist))
+        newScale = Math.min(fit * 12, Math.max(fit * 0.4, newScale))
+        const prevCx = d.pinch.prevCenter.x - box.left
+        const prevCy = d.pinch.prevCenter.y - box.top
+        const wx = (prevCx - s.stage.x()) / oldScale
+        const wy = (prevCy - s.stage.y()) / oldScale
+        let nx = (center.x - box.left) - wx * newScale
+        let ny = (center.y - box.top) - wy * newScale
+        // Keep the region from being panned entirely off screen.
+        const vr = s.fitVRect
+        if (vr) {
+          const cw = s.stage.width()
+          const ch = s.stage.height()
+          const MARGIN = 80
+          nx = Math.min(nx, cw - MARGIN - vr.x * newScale)
+          nx = Math.max(nx, MARGIN - (vr.x + vr.w) * newScale)
+          ny = Math.min(ny, ch - MARGIN - vr.y * newScale)
+          ny = Math.max(ny, MARGIN - (vr.y + vr.h) * newScale)
+        }
         s.stage.scale({ x: newScale, y: newScale })
-        s.stage.position({
-          x: (center.x - box.left) - world.x * newScale,
-          y: (center.y - box.top) - world.y * newScale
-        })
+        s.stage.position({ x: nx, y: ny })
         s.stage.batchDraw()
+        d.pinch.prevDist = dist
+        d.pinch.prevCenter = center
         return
       }
 
@@ -559,10 +612,8 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow }: Prop
         return
       }
       if (state.tool === 'fill') {
-        if (insideRect(fig, 0.05)) {
-          const p = toLocal(fig)
-          if (p) state.addStroke([p], 'fill', state.strokeWidthFor(drawRef.current.rect?.h ?? 1))
-        }
+        const p = toLocal(fig)
+        if (p) state.addStroke([p], 'fill', state.strokeWidthFor(drawRef.current.rect?.h ?? 1))
         return
       }
 

@@ -7,15 +7,23 @@ import { isClosedShape } from './shapes'
 // this so line weight is consistent at every zoom and export size.
 export const REF_HEIGHT = 2048
 
+/** The sub-space of region-local coordinates a canvas covers. */
+export interface StrokeSpace { x0: number; y0: number; x1: number; y1: number }
+
+const UNIT_SPACE: StrokeSpace = { x0: 0, y0: 0, x1: 1, y1: 1 }
+
 /**
- * Renders one stroke onto a canvas whose pixel space maps the item's region
- * rect: point (x, y) → (x * width, y * height). `pixelScale` is canvas px per
- * reference-figure px (used for line weights).
+ * Renders one stroke onto a canvas covering `space` in region-local units
+ * (default: the region rect itself, (0,0)–(1,1)). `pixelScale` is canvas px
+ * per reference-figure px (used for line weights).
  */
-export function renderStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, pixelScale: number): void {
+export function renderStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, pixelScale: number, space: StrokeSpace = UNIT_SPACE): void {
   const w = ctx.canvas.width
   const h = ctx.canvas.height
-  const px = (p: [number, number, number]): [number, number, number] => [p[0] * w, p[1] * h, p[2]]
+  const sw = space.x1 - space.x0
+  const sh = space.y1 - space.y0
+  const px = (p: [number, number, number]): [number, number, number] =>
+    [((p[0] - space.x0) / sw) * w, ((p[1] - space.y0) / sh) * h, p[2]]
   const widthPx = Math.max(1.5, stroke.width * REF_HEIGHT * pixelScale)
 
   ctx.save()
@@ -55,7 +63,10 @@ export function renderStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, pixe
     }
     case 'fill': {
       const p = stroke.points[0]
-      if (p) floodFill(ctx, p[0] * w, p[1] * h, stroke.colour)
+      if (p) {
+        const [fx, fy] = px(p)
+        floodFill(ctx, fx, fy, stroke.colour)
+      }
       break
     }
     default: {

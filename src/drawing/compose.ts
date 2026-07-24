@@ -68,13 +68,21 @@ export function composeDesign(adapter: FigureAdapter, design: Design, opts: Comp
     const rect = itemRect(adapter, item)
     const rendered = renderItem(item, rect)
     const t = item.transform
+    const ex = rendered.extent
+    // Pivot stays at the region-rect centre regardless of stroke overflow.
     const cx = (rect.x + rect.w / 2 + t.x) * figW
     const cy = (rect.y + rect.h / 2 + t.y) * figH
     ctx.save()
     ctx.translate(cx, cy)
     ctx.rotate((t.rotation * Math.PI) / 180)
     ctx.scale(t.scale, t.scale)
-    ctx.drawImage(rendered.canvas, (-rect.w * figW) / 2, (-rect.h * figH) / 2, rect.w * figW, rect.h * figH)
+    ctx.drawImage(
+      rendered.canvas,
+      (ex.x0 - 0.5) * rect.w * figW,
+      (ex.y0 - 0.5) * rect.h * figH,
+      (ex.x1 - ex.x0) * rect.w * figW,
+      (ex.y1 - ex.y0) * rect.h * figH
+    )
     ctx.restore()
   }
   ctx.restore()

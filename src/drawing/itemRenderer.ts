@@ -1,6 +1,7 @@
 import type { FigureAdapter } from '../figure'
 import type { Item, NormalisedRect } from '../model/types'
 import { renderStroke } from './strokeRender'
+import { extentFor, type ItemExtent } from './extent'
 
 // Reference figure pixel space (matches authored figure canvases).
 export const FIG_W = 1024
@@ -25,6 +26,8 @@ export interface RenderedItem {
   canvas: HTMLCanvasElement
   /** canvas px per reference-figure px */
   pixelScale: number
+  /** The region-local sub-space the canvas covers (strokes may overflow the rect). */
+  extent: ItemExtent
 }
 
 // Items are updated immutably in the store, so a WeakMap gives us perfect
@@ -35,17 +38,18 @@ export function renderItem(item: Item, rect: NormalisedRect): RenderedItem {
   const hit = cache.get(item)
   if (hit) return hit
 
-  const rectWpx = Math.max(1, rect.w * FIG_W)
-  const rectHpx = Math.max(1, rect.h * FIG_H)
+  const extent = extentFor(item, rect, FIG_W, FIG_H)
+  const extWpx = Math.max(1, (extent.x1 - extent.x0) * rect.w * FIG_W)
+  const extHpx = Math.max(1, (extent.y1 - extent.y0) * rect.h * FIG_H)
   // Oversample small regions so a ring drawn at 6x pinch-zoom stays crisp.
-  const pixelScale = Math.min(4, Math.max(1, 1400 / Math.max(rectWpx, rectHpx)))
+  const pixelScale = Math.min(4, Math.max(0.5, 1400 / Math.max(extWpx, extHpx)))
   const canvas = document.createElement('canvas')
-  canvas.width = Math.ceil(rectWpx * pixelScale)
-  canvas.height = Math.ceil(rectHpx * pixelScale)
+  canvas.width = Math.ceil(extWpx * pixelScale)
+  canvas.height = Math.ceil(extHpx * pixelScale)
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!
-  for (const stroke of item.strokes) renderStroke(ctx, stroke, pixelScale)
+  for (const stroke of item.strokes) renderStroke(ctx, stroke, pixelScale, extent)
 
-  const rendered = { canvas, pixelScale }
+  const rendered = { canvas, pixelScale, extent }
   cache.set(item, rendered)
   return rendered
 }
