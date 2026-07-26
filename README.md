@@ -97,6 +97,12 @@ figure-select preview by recompositing the sliced parts — which also proves
 the layers reassemble. Parts are authored neutral greyscale and tinted at
 runtime from twelve skin tones.
 
+The build also normalises the authored body fill (`#DDD5CC`) to near-white.
+Tone is applied by multiplying, and multiplying can only darken, so leaving
+the fill at its authored grey capped how light the figure could ever be — no
+fair skin was reachable. Normalising makes the multiply faithful: the figure
+renders the tone that was picked, right across the range.
+
 **Adding a figure is drop-in:** put the delivered folder in
 `assets-src/figures/<id>/`, add a display name to `FIGURE_NAMES` in
 `scripts/build-figures.mjs`, list the id in a pack manifest, and rebuild.

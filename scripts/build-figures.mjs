@@ -36,6 +36,22 @@ const CANVAS = { width: 1024, height: 2048 }
 /** Figure-select thumbnails: small, greyscale, tinted at runtime. */
 const PREVIEW = { width: 320, height: 640 }
 
+/**
+ * The body fill the figures are authored in (docs/figure-art-spec.md §4), and
+ * the neutral level we normalise it to.
+ *
+ * Skin tone is applied at runtime by multiplying the artwork by the chosen
+ * colour. Multiplying can only darken, so leaving the fill at its authored
+ * warm grey caps how light the figure can ever get — the palest tone still
+ * came out a medium beige, and no genuinely fair skin was reachable.
+ * Normalising the fill to near-white makes the multiply faithful: the figure
+ * renders the tone that was picked, across the whole range. Ink and
+ * construction lines scale with it and stay dark.
+ */
+const BODY_FILL = { r: 0xdd, g: 0xd5, b: 0xcc }
+const NEUTRAL = 250
+const TONE_GAIN = [NEUTRAL / BODY_FILL.r, NEUTRAL / BODY_FILL.g, NEUTRAL / BODY_FILL.b]
+
 /** Display names, and the order figures are offered in. */
 const FIGURE_NAMES = {
   'mannequin-tpose': 'Standing Figure',
@@ -134,6 +150,7 @@ async function buildFigure(figureId) {
     // it produces are obvious as soon as a child zooms into a region.
     const png = await sharp(file)
       .resize(CANVAS.width, CANVAS.height, { fit: 'fill' })
+      .linear(TONE_GAIN, [0, 0, 0])
       .png({ compressionLevel: 9 })
       .toBuffer()
     const bounds = await alphaBounds(png)

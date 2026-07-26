@@ -44,12 +44,14 @@ export default function FigureSelect() {
       </div>
 
       <div className="shrink-0 flex flex-col items-center gap-2 p-3 pt-2 bg-paper border-t border-ink/10 shadow-[0_-6px_16px_rgba(0,0,0,0.05)]">
-        <div className="flex gap-2 justify-center max-w-md overflow-x-auto py-0.5">
+        {/* Every tone must be reachable without scrolling — a row that runs
+            off the edge quietly hides the ends of the range. */}
+        <div className="grid grid-cols-6 gap-2 justify-items-center">
           {tones.map((t) => (
             <button
               key={t} type="button" aria-label={`skin tone ${t}`}
               onClick={() => setTone(t)}
-              className={`w-11 h-11 shrink-0 rounded-full border-2 active:scale-90 transition-transform ${tone === t ? 'ring-4 ring-accent border-white' : 'border-ink/10'}`}
+              className={`w-11 h-11 rounded-full border-2 active:scale-90 transition-transform ${tone === t ? 'ring-4 ring-accent border-white' : 'border-ink/10'}`}
               style={{ background: t }}
             />
           ))}
