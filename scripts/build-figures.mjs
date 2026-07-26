@@ -1,104 +1,82 @@
-// Builds figure part PNGs + descriptors from the artwork in assets-src/figures.
+// Builds figure part PNGs, descriptors and previews from the commissioned
+// artwork in assets-src/figures (see docs/figure-art-spec.md).
 //
-// TWO SOURCE FORMATS, same output:
-//
-//  1. Commissioned art (see docs/figure-art-spec.md) — a directory of
-//     per-layer high-resolution PNGs, one per region, all sharing one canvas:
-//         assets-src/figures/<figureId>/<regionId>.png
-//     This is what the artist delivers; no vector round-trip needed.
-//
-//  2. The in-repo placeholder figures — a single master drawing whose named
-//     part groups this script isolates one at a time.
+// Each figure is a directory of per-layer high-resolution PNGs — one per
+// region, all sharing one uncropped canvas — plus the artist's qa.json,
+// which supplies the stacking order and joint anchor coordinates:
+//     assets-src/figures/<figureId>/<regionId>.png
+//     assets-src/figures/<figureId>/qa.json
 //
 // Authoring rules honoured here (Build Brief v0.4 §3):
-//  - the whole figure is drawn ONCE, then separated into parts
+//  - the whole figure is drawn once, then separated into parts
 //  - every part lands on the identical transparent canvas; parts are never
 //    cropped to their content
 //  - output is PNG with alpha, at figures/<figureId>/parts/<regionId>.png
-//  - bounds are measured from the rendered alpha channel, so descriptors
+//  - bounds are measured from the delivered alpha channel, so descriptors
 //    never drift from the artwork.
 import sharp from 'sharp'
-import { readFile, mkdir, writeFile, access } from 'node:fs/promises'
+import { readdir, mkdir, writeFile, readFile, access, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const SRC = path.join(ROOT, 'assets-src', 'figures')
 const OUT = path.join(ROOT, 'src', 'packs', 'core', 'figures')
+const PREVIEW_OUT = path.join(ROOT, 'src', 'packs', 'core', 'previews')
 const ICONS = path.join(ROOT, 'public', 'icons')
 
 /**
  * Layout coordinate space of the descriptors, and the pixel size parts are
  * written at. Stroke and layout maths are normalised against this, so raising
- * it only changes part image sharpness (and bundle size), nothing else.
+ * it only changes part sharpness — at a cost in bundle size and, more
+ * importantly, in the memory the runtime underlay canvas consumes.
  */
 const CANVAS = { width: 1024, height: 2048 }
 
-/** Region ids a full-body figure must provide (frozen taxonomy, §3). */
-const FULL_BODY_REGIONS = [
-  'legs-lower', 'legs-upper', 'foot-left', 'foot-right', 'hips', 'waist',
-  'torso', 'shoulders', 'neck', 'head', 'arm-right', 'arm-left',
-  'hand-right', 'hand-left'
-]
+/** Figure-select thumbnails: small, greyscale, tinted at runtime. */
+const PREVIEW = { width: 320, height: 640 }
+
+/** Display names, and the order figures are offered in. */
+const FIGURE_NAMES = {
+  'mannequin-tpose': 'Standing Figure',
+  'standing-side': 'Side View',
+  'standing-back': 'Back View',
+  'bust-form': 'Bust',
+  'runway': 'Runway Walk',
+  'hand-on-hip': 'Hand on Hip',
+  'bust-side': 'Bust, Side',
+  'twirl': 'Twirl',
+  'sitting': 'Sitting',
+  'croquis': 'Fashion Croquis'
+}
+
+/** Small regions need more surrounding context when zoomed into (§3). */
+const WIDE_PADDING = new Set(['foot-left', 'foot-right', 'hand-left', 'hand-right'])
 
 /**
- * Default part list for a full-body figure whose art has not arrived yet.
- * zIndex follows the standard body stacking order; bounds are measured from
- * the delivered art, and anchors can be filled in once it exists.
+ * Which of the artist's joint anchors belong to each region. Anchor ids in the
+ * descriptor use the taxonomy's side-less vocabulary (shoulder, elbow, wrist,
+ * hip, knee, ankle, neck, waist); the delivered keys carry a side suffix.
  */
-function fullBodyParts() {
-  const SMALL = new Set(['foot-left', 'foot-right', 'hand-left', 'hand-right', 'head'])
-  return FULL_BODY_REGIONS.map((regionId, i) => ({
-    regionId,
-    zIndex: 10 + i * 2,
-    padding: SMALL.has(regionId) ? 0.1 : 0.06,
-    anchors: []
-  }))
+const REGION_ANCHORS = {
+  head: ['neck'],
+  neck: ['neck'],
+  shoulders: ['neck', 'shoulder-left', 'shoulder-right'],
+  torso: ['shoulder-left', 'shoulder-right', 'waist'],
+  waist: ['waist'],
+  hips: ['waist', 'hip'],
+  'arm-left': ['shoulder-left', 'elbow-left', 'wrist-left'],
+  'arm-right': ['shoulder-right', 'elbow-right', 'wrist-right'],
+  'hand-left': ['wrist-left'],
+  'hand-right': ['wrist-right'],
+  'legs-upper': ['hip', 'knee-left', 'knee-right'],
+  'legs-lower': ['knee-left', 'knee-right', 'ankle-left', 'ankle-right'],
+  'foot-left': ['ankle-left'],
+  'foot-right': ['ankle-right']
 }
 
-/** @type {Record<string, {name: string, parts: Array<{regionId: string, zIndex: number, padding?: number, anchors?: Array<{id:string,x:number,y:number}>}>}>} */
-const FIGURES = {
-  'mannequin-tpose': {
-    name: 'Standing Figure',
-    parts: [
-      { regionId: 'legs-lower', zIndex: 10, anchors: [{ id: 'knee', x: 0.5, y: 0.723 }, { id: 'ankle', x: 0.5, y: 0.886 }] },
-      { regionId: 'legs-upper', zIndex: 12, anchors: [{ id: 'hip', x: 0.5, y: 0.48 }, { id: 'knee', x: 0.5, y: 0.723 }] },
-      { regionId: 'foot-left', zIndex: 14, padding: 0.1, anchors: [{ id: 'ankle', x: 0.586, y: 0.886 }] },
-      { regionId: 'foot-right', zIndex: 14, padding: 0.1, anchors: [{ id: 'ankle', x: 0.414, y: 0.886 }] },
-      { regionId: 'hips', zIndex: 16, anchors: [{ id: 'hip', x: 0.5, y: 0.48 }] },
-      { regionId: 'waist', zIndex: 18, anchors: [{ id: 'waist', x: 0.5, y: 0.416 }] },
-      { regionId: 'torso', zIndex: 20, anchors: [{ id: 'waist', x: 0.5, y: 0.398 }] },
-      { regionId: 'shoulders', zIndex: 21, anchors: [{ id: 'shoulder', x: 0.328, y: 0.233 }, { id: 'shoulder', x: 0.672, y: 0.233 }, { id: 'neck', x: 0.5, y: 0.219 }] },
-      { regionId: 'neck', zIndex: 22, anchors: [{ id: 'neck', x: 0.5, y: 0.219 }] },
-      { regionId: 'head', zIndex: 24, padding: 0.05, anchors: [{ id: 'neck', x: 0.5, y: 0.175 }] },
-      { regionId: 'arm-right', zIndex: 26, anchors: [{ id: 'shoulder', x: 0.328, y: 0.229 }, { id: 'elbow', x: 0.213, y: 0.298 }, { id: 'wrist', x: 0.111, y: 0.356 }] },
-      { regionId: 'arm-left', zIndex: 26, anchors: [{ id: 'shoulder', x: 0.672, y: 0.229 }, { id: 'elbow', x: 0.787, y: 0.298 }, { id: 'wrist', x: 0.889, y: 0.356 }] },
-      { regionId: 'hand-right', zIndex: 28, padding: 0.1, anchors: [{ id: 'wrist', x: 0.111, y: 0.356 }] },
-      { regionId: 'hand-left', zIndex: 28, padding: 0.1, anchors: [{ id: 'wrist', x: 0.889, y: 0.356 }] }
-    ]
-  },
-  // Commissioned poses. These build automatically as soon as their PNG layer
-  // directory lands in assets-src/figures/<id>/ — no code change needed.
-  // Until then the build skips them with a note.
-  'standing-side': { name: 'Side View', parts: fullBodyParts() },
-  'standing-back': { name: 'Back View', parts: fullBodyParts() },
-  'bust-form': {
-    name: 'Bust',
-    parts: [
-      { regionId: 'torso', zIndex: 10, anchors: [{ id: 'waist', x: 0.5, y: 0.727 }] },
-      { regionId: 'shoulders', zIndex: 12, anchors: [{ id: 'shoulder', x: 0.24, y: 0.41 }, { id: 'shoulder', x: 0.76, y: 0.41 }, { id: 'neck', x: 0.5, y: 0.385 }] },
-      { regionId: 'neck', zIndex: 14, anchors: [{ id: 'neck', x: 0.5, y: 0.385 }] },
-      { regionId: 'head', zIndex: 16, padding: 0.05, anchors: [{ id: 'neck', x: 0.5, y: 0.3 }] }
-    ]
-  }
-}
-
-function isolatePart(svgText, regionId) {
-  // Hide every part group, then re-show only the target. Id selectors beat
-  // class selectors, so no !important needed.
-  const css = `<style>.part{display:none}#part-${regionId}{display:inline}</style>`
-  return svgText.replace('</defs>', `${css}</defs>`)
-}
+const exists = (p) => access(p).then(() => true, () => false)
+const round = (v) => Math.round(v * 10000) / 10000
 
 async function alphaBounds(pngBuffer) {
   const { data, info } = await sharp(pngBuffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
@@ -113,7 +91,7 @@ async function alphaBounds(pngBuffer) {
       }
     }
   }
-  if (maxX < 0) throw new Error('part rendered empty')
+  if (maxX < 0) return null // legitimately empty layer (a hidden far limb)
   return {
     x: minX / info.width,
     y: minY / info.height,
@@ -122,73 +100,66 @@ async function alphaBounds(pngBuffer) {
   }
 }
 
-const round = (v) => Math.round(v * 10000) / 10000
-
-const exists = (p) => access(p).then(() => true, () => false)
-
-/**
- * Locate a figure's artwork. Commissioned PNG layer directories win over the
- * in-repo placeholder drawings; returns null when neither is present so the
- * build can skip a pose whose art hasn't arrived.
- */
-async function resolveSource(figureId) {
-  const layerDir = path.join(SRC, figureId)
-  if (await exists(layerDir)) return { kind: 'png-layers', dir: layerDir }
-  const master = path.join(SRC, `${figureId}.svg`)
-  if (await exists(master)) return { kind: 'master', file: master }
-  return null
-}
-
-/**
- * One part as a full-canvas transparent PNG. Delivered layers are already
- * full-canvas (spec §5.2) so they only need resizing to the layout canvas;
- * `fit: fill` preserves the shared frame exactly — never crop to content.
- */
-async function renderPart(source, regionId, masterText) {
-  if (source.kind === 'png-layers') {
-    const file = path.join(source.dir, `${regionId}.png`)
-    if (!(await exists(file))) throw new Error(`missing layer PNG: ${regionId}.png`)
-    return sharp(file)
-      .resize(CANVAS.width, CANVAS.height, { fit: 'fill' })
-      .png()
-      .toBuffer()
-  }
-  return sharp(Buffer.from(isolatePart(masterText, regionId))).png().toBuffer()
+/** Anchors for one region, normalised 0–1 against the source canvas. */
+function anchorsFor(regionId, anchors, canvas) {
+  return (REGION_ANCHORS[regionId] ?? [])
+    .filter((key) => anchors?.[key])
+    .map((key) => ({
+      id: key.replace(/-(left|right)$/, ''),
+      x: round(anchors[key][0] / canvas.width),
+      y: round(anchors[key][1] / canvas.height)
+    }))
 }
 
 async function buildFigure(figureId) {
-  const cfg = FIGURES[figureId]
-  const source = await resolveSource(figureId)
-  if (!source) {
-    console.log(`${figureId}: skipped — no artwork in assets-src/figures yet`)
+  const dir = path.join(SRC, figureId)
+  const qaFile = path.join(dir, 'qa.json')
+  if (!(await exists(qaFile))) {
+    console.log(`${figureId}: skipped — no qa.json alongside the layer PNGs`)
     return false
   }
-  const masterText = source.kind === 'master' ? await readFile(source.file, 'utf8') : null
+  const qa = JSON.parse(await readFile(qaFile, 'utf8'))
+  const order = qa.stacking_order
   const partsDir = path.join(OUT, figureId, 'parts')
   await mkdir(partsDir, { recursive: true })
 
   const parts = []
-  for (const part of cfg.parts) {
-    const png = await renderPart(source, part.regionId, masterText)
+  for (const [i, regionId] of order.entries()) {
+    const file = path.join(dir, `${regionId}.png`)
+    if (!(await exists(file))) throw new Error(`${figureId}: missing layer ${regionId}.png`)
+    // Delivered layers are already full-canvas, so this only rescales the
+    // shared frame — never a crop to content.
+    // Full-colour PNG, never palette-quantised: a 256-entry palette cannot
+    // hold the anti-aliased alpha ramp of an ink line, and the jagged edges
+    // it produces are obvious as soon as a child zooms into a region.
+    const png = await sharp(file)
+      .resize(CANVAS.width, CANVAS.height, { fit: 'fill' })
+      .png({ compressionLevel: 9 })
+      .toBuffer()
     const bounds = await alphaBounds(png)
-    await writeFile(path.join(partsDir, `${part.regionId}.png`), png)
+    await writeFile(path.join(partsDir, `${regionId}.png`), png)
+    if (!bounds) {
+      // e.g. the far hand in a true profile: keep the layer so the taxonomy
+      // stays complete, but it can never be tapped or drawn on.
+      console.log(`${figureId}/${regionId}: empty layer (not visible in this pose) — omitted from regions`)
+      continue
+    }
     parts.push({
-      regionId: part.regionId,
-      file: `parts/${part.regionId}.png`,
-      zIndex: part.zIndex,
+      regionId,
+      file: `parts/${regionId}.png`,
+      zIndex: 10 + i * 2,
       bounds: { x: round(bounds.x), y: round(bounds.y), w: round(bounds.w), h: round(bounds.h) },
-      padding: part.padding ?? 0.06,
+      padding: WIDE_PADDING.has(regionId) ? 0.1 : 0.06,
       skin: true,
-      anchors: part.anchors ?? []
+      anchors: anchorsFor(regionId, qa.anchors, qa.canvas ?? { width: 4096, height: 8192 })
     })
-    console.log(`${figureId}/${part.regionId}: bounds`, parts[parts.length - 1].bounds)
   }
 
   const descriptor = {
     schemaVersion: 1,
     taxonomyVersion: 1,
     id: figureId,
-    name: cfg.name,
+    name: FIGURE_NAMES[figureId] ?? figureId,
     canvas: CANVAS,
     skinTonePart: null,
     skeleton: null,
@@ -196,20 +167,22 @@ async function buildFigure(figureId) {
   }
   await writeFile(path.join(OUT, figureId, 'figure.json'), JSON.stringify(descriptor, null, 2))
 
-  // Full-figure preview (QA only): the parts recomposited in z-order, which
-  // also proves the layers reassemble into a complete figure.
-  const previewDir = path.join(ROOT, 'assets-src', 'preview')
-  await mkdir(previewDir, { recursive: true })
-  // Composite at full size first — sharp resizes before compositing within a
-  // single chain, which would shrink the base below the layers.
-  const ordered = [...parts].sort((a, b) => a.zIndex - b.zIndex)
+  // Figure-select preview: the sliced parts recomposited in z-order. Doubles
+  // as proof that the layers reassemble into a complete figure. Composite at
+  // full size first — sharp resizes before compositing within one chain.
+  await mkdir(PREVIEW_OUT, { recursive: true })
   const composited = await sharp({
     create: { width: CANVAS.width, height: CANVAS.height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
   })
-    .composite(ordered.map((p) => ({ input: path.join(OUT, figureId, p.file) })))
+    .composite(parts.map((p) => ({ input: path.join(OUT, figureId, p.file) })))
     .png()
     .toBuffer()
-  await sharp(composited).resize(512, 1024).png().toFile(path.join(previewDir, `${figureId}.png`))
+  await sharp(composited)
+    .resize(PREVIEW.width, PREVIEW.height)
+    .png({ compressionLevel: 9, palette: true })
+    .toFile(path.join(PREVIEW_OUT, `${figureId}.png`))
+
+  console.log(`${figureId}: ${parts.length} regions, ${parts.reduce((n, p) => n + p.anchors.length, 0)} anchors`)
   return true
 }
 
@@ -227,9 +200,28 @@ async function buildIcons() {
   }
 }
 
+const available = (await readdir(SRC, { withFileTypes: true }))
+  .filter((d) => d.isDirectory()).map((d) => d.name)
+// Known figures first, in offer order; anything else the artist delivers follows.
+const figureIds = [
+  ...Object.keys(FIGURE_NAMES).filter((id) => available.includes(id)),
+  ...available.filter((id) => !(id in FIGURE_NAMES))
+]
+
+// Drop output for figures whose art has been removed, so stale parts can't
+// linger in the bundle. Guarded: with no source art at all this would wipe
+// every built figure, which must never happen on a checkout missing assets.
+if (figureIds.length > 0) {
+  for (const stale of (await readdir(OUT).catch(() => []))) {
+    if (!figureIds.includes(stale)) await rm(path.join(OUT, stale), { recursive: true, force: true })
+  }
+} else {
+  console.log('no figure artwork found in assets-src/figures — leaving built output untouched')
+}
+
 let built = 0
-for (const figureId of Object.keys(FIGURES)) {
+for (const figureId of figureIds) {
   if (await buildFigure(figureId)) built++
 }
 await buildIcons()
-console.log(`figures + icons built (${built}/${Object.keys(FIGURES).length} figures have artwork)`)
+console.log(`figures + icons built (${built}/${figureIds.length})`)

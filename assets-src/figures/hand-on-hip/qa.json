@@ -1,0 +1,190 @@
+{
+  "figure_id": "hand-on-hip",
+  "status": "AI-generated commissioned prototype",
+  "canvas": {
+    "width": 4096,
+    "height": 8192,
+    "ratio": "1:2"
+  },
+  "figure_bbox": {
+    "left": 660,
+    "top": 207,
+    "width": 2776,
+    "height": 7700,
+    "height_percent": 93.994
+  },
+  "palette": {
+    "body": "#DDD5CC",
+    "ink": "#332D28",
+    "construction": "#7A7067"
+  },
+  "stacking_order": [
+    "legs-lower",
+    "legs-upper",
+    "foot-right",
+    "foot-left",
+    "hips",
+    "waist",
+    "torso",
+    "shoulders",
+    "neck",
+    "head",
+    "arm-right",
+    "arm-left",
+    "hand-right",
+    "hand-left"
+  ],
+  "layers": [
+    {
+      "name": "legs-lower",
+      "file": "hand-on-hip/legs-lower.png",
+      "sha256": "3de261635c9d99ebd25a3981e44e69b40e41cbf30aecc7df0bee6448872de602"
+    },
+    {
+      "name": "legs-upper",
+      "file": "hand-on-hip/legs-upper.png",
+      "sha256": "902548e29acbe0bc1e2d591ed687bf281229ff370cfb5f8def012763e61c371e"
+    },
+    {
+      "name": "foot-right",
+      "file": "hand-on-hip/foot-right.png",
+      "sha256": "4ac4e9446341c9fea05c3ec257d15bdcf63ff510076c14abd9015182c426f70c"
+    },
+    {
+      "name": "foot-left",
+      "file": "hand-on-hip/foot-left.png",
+      "sha256": "d86a34afc83787f4d7f0335c6168758eba604b65052789164b185a7df59026c5"
+    },
+    {
+      "name": "hips",
+      "file": "hand-on-hip/hips.png",
+      "sha256": "fad120eef2a07dc05a08c8c68c4c7c23367c6e33c534d46186afd15dd4b413a5"
+    },
+    {
+      "name": "waist",
+      "file": "hand-on-hip/waist.png",
+      "sha256": "e7b2c7c46ddd0d44e45e24a72f5ef9512ff288b7e5577a9c5689e343e90c073b"
+    },
+    {
+      "name": "torso",
+      "file": "hand-on-hip/torso.png",
+      "sha256": "b4902f2895bae8a3e6a87ff499794de0a7a6aceee1056258f318dbe77e60497b"
+    },
+    {
+      "name": "shoulders",
+      "file": "hand-on-hip/shoulders.png",
+      "sha256": "764a7fa6050f58cee3df13ea7262d6847afb9c2cdddda31701bade3307936f80"
+    },
+    {
+      "name": "neck",
+      "file": "hand-on-hip/neck.png",
+      "sha256": "d33fd37863cd8cc66f3cfee11b5115b97caf47a0f290b98bb3282f00ed932743"
+    },
+    {
+      "name": "head",
+      "file": "hand-on-hip/head.png",
+      "sha256": "8f864a583e996ad16b0cd7277f4386c5e5690f5991f0113e36fc5ecfb6a1a697"
+    },
+    {
+      "name": "arm-right",
+      "file": "hand-on-hip/arm-right.png",
+      "sha256": "edadbf303359ecce7f7529ece9f861ce7fff37b1155fc7bb85ee6c41a3afa758"
+    },
+    {
+      "name": "arm-left",
+      "file": "hand-on-hip/arm-left.png",
+      "sha256": "af505fa7db0064c7d7ecdc725acec7553cd3a20a5092d7b7597cb68862d09c5c"
+    },
+    {
+      "name": "hand-right",
+      "file": "hand-on-hip/hand-right.png",
+      "sha256": "613272d88e88f868ca4b45c95a75c9533107819679ca19725703cf5fecd47e77"
+    },
+    {
+      "name": "hand-left",
+      "file": "hand-on-hip/hand-left.png",
+      "sha256": "1fbd2df056bda315836e6a5bc0a99dfebd9cbada570006894fd6561ae87c2fff"
+    }
+  ],
+  "anchors": {
+    "neck": [
+      2157,
+      1281
+    ],
+    "shoulder-right": [
+      1511,
+      1679
+    ],
+    "shoulder-left": [
+      2754,
+      1679
+    ],
+    "elbow-right": [
+      814,
+      2575
+    ],
+    "elbow-left": [
+      2978,
+      2823
+    ],
+    "wrist-right": [
+      1361,
+      3147
+    ],
+    "wrist-left": [
+      3202,
+      3818
+    ],
+    "waist": [
+      2157,
+      2948
+    ],
+    "hip": [
+      2157,
+      3694
+    ],
+    "knee-right": [
+      1685,
+      5435
+    ],
+    "knee-left": [
+      2630,
+      5435
+    ],
+    "ankle-right": [
+      1784,
+      7325
+    ],
+    "ankle-left": [
+      3053,
+      7325
+    ]
+  },
+  "flattened_sha256": "6a6e4b6383d3813dcb7285394ba1b3769bf7b17be3e82377c78f14df1383d1eb",
+  "source_reference": "call_anOWhVBvD91FN4d3cUtPcUBy.png",
+  "layered_source": {
+    "file": "hand-on-hip-source.psd",
+    "format": "PSD",
+    "layer_count": 15,
+    "top_to_bottom": [
+      "anchors",
+      "hand-left",
+      "hand-right",
+      "arm-left",
+      "arm-right",
+      "head",
+      "neck",
+      "shoulders",
+      "torso",
+      "waist",
+      "hips",
+      "foot-left",
+      "foot-right",
+      "legs-upper",
+      "legs-lower"
+    ],
+    "anchors_hidden": true,
+    "size_bytes": 137323750,
+    "sha256": "a1f0b38042a8268a205dfea8b64dfa65c1ea7375fdd9349fee746cf44a0238ee"
+  }
+}

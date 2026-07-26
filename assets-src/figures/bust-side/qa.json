@@ -1,0 +1,88 @@
+{
+  "figure_id": "bust-side",
+  "status": "AI-generated commissioned prototype",
+  "canvas": {
+    "width": 4096,
+    "height": 8192,
+    "ratio": "1:2"
+  },
+  "figure_bbox": {
+    "left": 1249,
+    "top": 172,
+    "width": 1597,
+    "height": 7782,
+    "height_percent": 94.995
+  },
+  "palette": {
+    "body": "#DDD5CC",
+    "ink": "#332D28",
+    "construction": "#7A7067"
+  },
+  "stacking_order": [
+    "torso",
+    "shoulders",
+    "neck",
+    "head"
+  ],
+  "layers": [
+    {
+      "name": "torso",
+      "file": "bust-side/torso.png",
+      "sha256": "4540caf75f847515d99bbed8516b76bb6c53be0e8a2efef711924b42af780406"
+    },
+    {
+      "name": "shoulders",
+      "file": "bust-side/shoulders.png",
+      "sha256": "be238a0a7c45e4a667f803148f03f3b74492d32e5ffabfbe8cdf35b29e960a84"
+    },
+    {
+      "name": "neck",
+      "file": "bust-side/neck.png",
+      "sha256": "98b0b0e3c6d50295ba938b7f73a04c7ec099504e7f252ea0169257a1f945b543"
+    },
+    {
+      "name": "head",
+      "file": "bust-side/head.png",
+      "sha256": "51022b61b79586a2724be25964e6ab57f4e53c1e9f1fe71cf88186ed851c807f"
+    }
+  ],
+  "anchors": {
+    "neck": [
+      1937,
+      1538
+    ],
+    "shoulder-left": [
+      2243,
+      2009
+    ],
+    "shoulder-right": [
+      2361,
+      2009
+    ],
+    "waist": [
+      2007,
+      3705
+    ],
+    "hip": [
+      2031,
+      5095
+    ]
+  },
+  "flattened_sha256": "64feb2c882eea466a65d5b84d6961c362618d2441d77ca11f1dd41a258b25880",
+  "source_reference": "call_OFDiZGD03XUf6zzvTqb00Avv.png",
+  "layered_source": {
+    "file": "bust-side-source.psd",
+    "format": "PSD",
+    "layer_count": 5,
+    "top_to_bottom": [
+      "anchors",
+      "head",
+      "neck",
+      "shoulders",
+      "torso"
+    ],
+    "anchors_hidden": true,
+    "size_bytes": 135279014,
+    "sha256": "af1eb101c666be32bfb371bdc856b8f44017d9205b6129a13d801cc707c13318"
+  }
+}

@@ -2,6 +2,7 @@ import type { FigureAdapter } from './adapter'
 import { RasterFigureAdapter, listFigureDescriptors } from './rasterAdapter'
 
 export type { FigureAdapter, Context, Tone, FigureDescriptor } from './adapter'
+export { renderFigurePreview } from './previews'
 
 const cache = new Map<string, Promise<FigureAdapter>>()
 

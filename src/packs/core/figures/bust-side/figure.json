@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "taxonomyVersion": 1,
+  "id": "bust-side",
+  "name": "Bust, Side",
+  "canvas": {
+    "width": 1024,
+    "height": 2048
+  },
+  "skinTonePart": null,
+  "skeleton": null,
+  "parts": [
+    {
+      "regionId": "torso",
+      "file": "parts/torso.png",
+      "zIndex": 10,
+      "bounds": {
+        "x": 0.3047,
+        "y": 0.2852,
+        "w": 0.3906,
+        "h": 0.686
+      },
+      "padding": 0.06,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "shoulder",
+          "x": 0.5476,
+          "y": 0.2452
+        },
+        {
+          "id": "shoulder",
+          "x": 0.5764,
+          "y": 0.2452
+        },
+        {
+          "id": "waist",
+          "x": 0.49,
+          "y": 0.4523
+        }
+      ]
+    },
+    {
+      "regionId": "shoulders",
+      "file": "parts/shoulders.png",
+      "zIndex": 12,
+      "bounds": {
+        "x": 0.3721,
+        "y": 0.2217,
+        "w": 0.2578,
+        "h": 0.0791
+      },
+      "padding": 0.06,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "neck",
+          "x": 0.4729,
+          "y": 0.1877
+        },
+        {
+          "id": "shoulder",
+          "x": 0.5476,
+          "y": 0.2452
+        },
+        {
+          "id": "shoulder",
+          "x": 0.5764,
+          "y": 0.2452
+        }
+      ]
+    },
+    {
+      "regionId": "neck",
+      "file": "parts/neck.png",
+      "zIndex": 14,
+      "bounds": {
+        "x": 0.3848,
+        "y": 0.1704,
+        "w": 0.2383,
+        "h": 0.0757
+      },
+      "padding": 0.06,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "neck",
+          "x": 0.4729,
+          "y": 0.1877
+        }
+      ]
+    },
+    {
+      "regionId": "head",
+      "file": "parts/head.png",
+      "zIndex": 16,
+      "bounds": {
+        "x": 0.3447,
+        "y": 0.0205,
+        "w": 0.2734,
+        "h": 0.1768
+      },
+      "padding": 0.06,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "neck",
+          "x": 0.4729,
+          "y": 0.1877
+        }
+      ]
+    }
+  ]
+}

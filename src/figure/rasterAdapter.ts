@@ -1,5 +1,6 @@
 import type { Anchor, NormalisedRect, RegionId } from '../model/types'
 import type { Context, FigureAdapter, FigureDescriptor, FigurePartDescriptor, Tone } from './adapter'
+import { tintInPlace, workCanvas } from './tint'
 
 // This module is the ONLY place figure assets are read (Rule 3, enforced by
 // an acceptance test). Assets are bundled — no network (Rule 4).
@@ -47,7 +48,6 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 export class RasterFigureAdapter implements FigureAdapter {
   private parts: LoadedPart[] = [] // sorted by zIndex ascending
   private tone: Tone = '#ddd5cc'
-  private tintCache = new Map<string, HTMLCanvasElement>()
   private unionBounds: NormalisedRect = { x: 0, y: 0, w: 1, h: 1 }
 
   private constructor(readonly descriptor: FigureDescriptor) {}
@@ -144,40 +144,25 @@ export class RasterFigureAdapter implements FigureAdapter {
     this.surroundOpacity = Math.min(1, Math.max(0, opacity))
   }
 
+  /**
+   * Compose the parts greyscale (preserving z-order and per-part opacity),
+   * tint the finished composite once, then hand it to the caller's canvas.
+   */
   private drawParts(ctx: Context, opacity: (p: FigurePartDescriptor) => number): void {
     const { width, height } = ctx.canvas
+    if (!width || !height) return
+    const work = workCanvas(width, height)
+    const workCtx = work.getContext('2d')!
     for (const part of this.parts) {
       const a = opacity(part.desc)
       if (a <= 0) continue
-      ctx.save()
-      ctx.globalAlpha = a
-      ctx.drawImage(this.tinted(part), 0, 0, width, height)
-      ctx.restore()
+      workCtx.save()
+      workCtx.globalAlpha = a
+      workCtx.drawImage(part.image, 0, 0, width, height)
+      workCtx.restore()
     }
-  }
-
-  /**
-   * Skin tone: parts are authored neutral greyscale and tinted at runtime
-   * (§3). Multiply keeps ink lines dark; destination-in restores the alpha.
-   */
-  private tinted(part: LoadedPart): HTMLCanvasElement | HTMLImageElement {
-    if (!part.desc.skin) return part.image
-    const key = `${part.desc.regionId}:${this.tone}`
-    let canvas = this.tintCache.get(key)
-    if (!canvas) {
-      canvas = document.createElement('canvas')
-      canvas.width = part.image.naturalWidth
-      canvas.height = part.image.naturalHeight
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(part.image, 0, 0)
-      ctx.globalCompositeOperation = 'multiply'
-      ctx.fillStyle = this.tone
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-      ctx.globalCompositeOperation = 'destination-in'
-      ctx.drawImage(part.image, 0, 0)
-      this.tintCache.set(key, canvas)
-    }
-    return canvas
+    tintInPlace(work, this.tone)
+    ctx.drawImage(work, 0, 0)
   }
 
   private part(r: RegionId) {

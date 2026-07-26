@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { getFigureAdapter, listFigures } from '../figure'
+import { listFigures, renderFigurePreview } from '../figure'
 import { listFigureIds, listSkinTones } from '../packs/loader'
 import { useApp } from '../store/app'
 import { useEditor } from '../store/editor'
@@ -23,45 +23,53 @@ export default function FigureSelect() {
   }
 
   return (
-    <div className="fixed inset-0 bg-paper flex flex-col items-center p-4 gap-5 overflow-y-auto">
-      <div className="w-full flex items-center">
+    // The figure grid scrolls; tones and the Start button stay pinned so
+    // they are always one tap away however many poses a pack adds.
+    <div className="fixed inset-0 bg-paper flex flex-col">
+      <div className="w-full flex items-center p-3 pb-1 shrink-0">
         <IconButton icon="⬅️" label="Back" onClick={() => navigate('landing')} />
-        <h1 className="flex-1 text-center text-2xl font-bold font-round select-none">Who are you dressing?</h1>
+        <h1 className="flex-1 text-center text-xl sm:text-2xl font-bold font-round select-none">Who are you dressing?</h1>
         <div className="w-12" />
       </div>
 
-      <div className="flex gap-5 flex-wrap justify-center">
-        {figures.map((f) => (
-          <FigureCard
-            key={f.id} figureId={f.id} name={f.name} tone={tone} mirrored={mirrored}
-            selected={figureId === f.id} onSelect={() => setFigureId(f.id)}
-          />
-        ))}
+      <div className="flex-1 overflow-y-auto px-3 py-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 justify-items-center w-full max-w-4xl mx-auto">
+          {figures.map((f) => (
+            <FigureCard
+              key={f.id} figureId={f.id} name={f.name} tone={tone} mirrored={mirrored}
+              selected={figureId === f.id} onSelect={() => setFigureId(f.id)}
+            />
+          ))}
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-2.5 justify-center max-w-md">
-        {tones.map((t) => (
+      <div className="shrink-0 flex flex-col items-center gap-2 p-3 pt-2 bg-paper border-t border-ink/10 shadow-[0_-6px_16px_rgba(0,0,0,0.05)]">
+        <div className="flex gap-2 justify-center max-w-md overflow-x-auto py-0.5">
+          {tones.map((t) => (
+            <button
+              key={t} type="button" aria-label={`skin tone ${t}`}
+              onClick={() => setTone(t)}
+              className={`w-11 h-11 shrink-0 rounded-full border-2 active:scale-90 transition-transform ${tone === t ? 'ring-4 ring-accent border-white' : 'border-ink/10'}`}
+              style={{ background: t }}
+            />
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 w-full max-w-md">
           <button
-            key={t} type="button" aria-label={`skin tone ${t}`}
-            onClick={() => setTone(t)}
-            className={`w-11 h-11 rounded-full border-2 active:scale-90 transition-transform ${tone === t ? 'ring-4 ring-accent border-white' : 'border-ink/10'}`}
-            style={{ background: t }}
-          />
-        ))}
+            type="button"
+            aria-label={`Mirror figure ${mirrored ? 'on' : 'off'}`}
+            onClick={() => setMirrored((m) => !m)}
+            className={`min-h-14 w-14 shrink-0 rounded-2xl border-2 text-2xl active:scale-95 ${mirrored ? 'bg-accentSoft border-accent' : 'bg-white border-ink/15'}`}
+          >🪞</button>
+          <button
+            type="button"
+            onClick={start}
+            disabled={!figureId}
+            className="flex-1 min-h-14 rounded-3xl bg-accent text-white text-xl font-bold font-round shadow-lg active:scale-95 disabled:opacity-40"
+          >Start drawing! ✏️</button>
+        </div>
       </div>
-
-      <button
-        type="button"
-        onClick={() => setMirrored((m) => !m)}
-        className={`min-h-12 px-5 rounded-2xl border-2 font-round active:scale-95 ${mirrored ? 'bg-accentSoft border-accent' : 'bg-white border-ink/15'}`}
-      >🪞 Mirror figure {mirrored ? 'on' : 'off'}</button>
-
-      <button
-        type="button"
-        onClick={start}
-        disabled={!figureId}
-        className="min-h-16 px-12 rounded-3xl bg-accent text-white text-2xl font-bold font-round shadow-lg active:scale-95 disabled:opacity-40"
-      >Start drawing! ✏️</button>
     </div>
   )
 }
@@ -73,27 +81,11 @@ function FigureCard(props: {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    let alive = true
-    void getFigureAdapter(props.figureId).then((adapter) => {
-      if (!alive) return
-      const canvas = canvasRef.current
-      if (!canvas) return
-      const ctx = canvas.getContext('2d')!
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      ctx.save()
-      if (props.mirrored) {
-        ctx.translate(canvas.width, 0)
-        ctx.scale(-1, 1)
-      }
-      // Thumbnails render through the adapter — no direct asset access.
-      const off = document.createElement('canvas')
-      off.width = canvas.width
-      off.height = canvas.height
-      adapter.renderUnderlay(off.getContext('2d')!, props.tone)
-      ctx.drawImage(off, 0, 0)
-      ctx.restore()
-    })
-    return () => { alive = false }
+    const canvas = canvasRef.current
+    if (!canvas) return
+    // Thumbnails come from the figure module's lightweight previews, so
+    // browsing every pose doesn't decode every figure at full size.
+    void renderFigurePreview(canvas, props.figureId, props.tone, props.mirrored)
   }, [props.figureId, props.tone, props.mirrored])
 
   return (
@@ -101,11 +93,11 @@ function FigureCard(props: {
       type="button"
       data-tut="figure-card"
       onClick={props.onSelect}
-      className={`flex flex-col items-center gap-2 p-4 rounded-3xl bg-white shadow-md border-4 active:scale-95 transition-transform
+      className={`flex flex-col items-center gap-1 p-2 sm:p-3 rounded-3xl bg-white shadow-md border-4 active:scale-95 transition-transform w-full
         ${props.selected ? 'border-accent' : 'border-transparent'}`}
     >
-      <canvas ref={canvasRef} width={160} height={320} className="w-[130px] h-[260px]" aria-hidden />
-      <span className="font-round font-bold text-ink">{props.name}</span>
+      <canvas ref={canvasRef} width={160} height={320} className="w-full max-w-[110px] h-auto aspect-[1/2]" aria-hidden />
+      <span className="font-round font-bold text-ink text-xs sm:text-sm text-center leading-tight">{props.name}</span>
     </button>
   )
 }

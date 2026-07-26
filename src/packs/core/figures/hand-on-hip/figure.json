@@ -1,0 +1,364 @@
+{
+  "schemaVersion": 1,
+  "taxonomyVersion": 1,
+  "id": "hand-on-hip",
+  "name": "Hand on Hip",
+  "canvas": {
+    "width": 1024,
+    "height": 2048
+  },
+  "skinTonePart": null,
+  "skeleton": null,
+  "parts": [
+    {
+      "regionId": "legs-lower",
+      "file": "parts/legs-lower.png",
+      "zIndex": 10,
+      "bounds": {
+        "x": 0.3584,
+        "y": 0.6631,
+        "w": 0.4287,
+        "h": 0.2412
+      },
+      "padding": 0.06,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "knee",
+          "x": 0.6421,
+          "y": 0.6635
+        },
+        {
+          "id": "knee",
+          "x": 0.4114,
+          "y": 0.6635
+        },
+        {
+          "id": "ankle",
+          "x": 0.7454,
+          "y": 0.8942
+        },
+        {
+          "id": "ankle",
+          "x": 0.4355,
+          "y": 0.8942
+        }
+      ]
+    },
+    {
+      "regionId": "legs-upper",
+      "file": "parts/legs-upper.png",
+      "zIndex": 12,
+      "bounds": {
+        "x": 0.3232,
+        "y": 0.4746,
+        "w": 0.3887,
+        "h": 0.2051
+      },
+      "padding": 0.06,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "hip",
+          "x": 0.5266,
+          "y": 0.4509
+        },
+        {
+          "id": "knee",
+          "x": 0.6421,
+          "y": 0.6635
+        },
+        {
+          "id": "knee",
+          "x": 0.4114,
+          "y": 0.6635
+        }
+      ]
+    },
+    {
+      "regionId": "foot-right",
+      "file": "parts/foot-right.png",
+      "zIndex": 14,
+      "bounds": {
+        "x": 0.373,
+        "y": 0.8848,
+        "w": 0.1006,
+        "h": 0.0806
+      },
+      "padding": 0.1,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "ankle",
+          "x": 0.4355,
+          "y": 0.8942
+        }
+      ]
+    },
+    {
+      "regionId": "foot-left",
+      "file": "parts/foot-left.png",
+      "zIndex": 16,
+      "bounds": {
+        "x": 0.7139,
+        "y": 0.8848,
+        "w": 0.1025,
+        "h": 0.0806
+      },
+      "padding": 0.1,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "ankle",
+          "x": 0.7454,
+          "y": 0.8942
+        }
+      ]
+    },
+    {
+      "regionId": "hips",
+      "file": "parts/hips.png",
+      "zIndex": 18,
+      "bounds": {
+        "x": 0.3223,
+        "y": 0.4355,
+        "w": 0.4248,
+        "h": 0.062
+      },
+      "padding": 0.06,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "waist",
+          "x": 0.5266,
+          "y": 0.3599
+        },
+        {
+          "id": "hip",
+          "x": 0.5266,
+          "y": 0.4509
+        }
+      ]
+    },
+    {
+      "regionId": "waist",
+      "file": "parts/waist.png",
+      "zIndex": 20,
+      "bounds": {
+        "x": 0.3223,
+        "y": 0.3564,
+        "w": 0.418,
+        "h": 0.0952
+      },
+      "padding": 0.06,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "waist",
+          "x": 0.5266,
+          "y": 0.3599
+        }
+      ]
+    },
+    {
+      "regionId": "torso",
+      "file": "parts/torso.png",
+      "zIndex": 22,
+      "bounds": {
+        "x": 0.3623,
+        "y": 0.2227,
+        "w": 0.3301,
+        "h": 0.1504
+      },
+      "padding": 0.06,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "shoulder",
+          "x": 0.6724,
+          "y": 0.205
+        },
+        {
+          "id": "shoulder",
+          "x": 0.3689,
+          "y": 0.205
+        },
+        {
+          "id": "waist",
+          "x": 0.5266,
+          "y": 0.3599
+        }
+      ]
+    },
+    {
+      "regionId": "shoulders",
+      "file": "parts/shoulders.png",
+      "zIndex": 24,
+      "bounds": {
+        "x": 0.3135,
+        "y": 0.1802,
+        "w": 0.3887,
+        "h": 0.062
+      },
+      "padding": 0.06,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "neck",
+          "x": 0.5266,
+          "y": 0.1564
+        },
+        {
+          "id": "shoulder",
+          "x": 0.6724,
+          "y": 0.205
+        },
+        {
+          "id": "shoulder",
+          "x": 0.3689,
+          "y": 0.205
+        }
+      ]
+    },
+    {
+      "regionId": "neck",
+      "file": "parts/neck.png",
+      "zIndex": 26,
+      "bounds": {
+        "x": 0.4287,
+        "y": 0.1411,
+        "w": 0.1973,
+        "h": 0.0586
+      },
+      "padding": 0.06,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "neck",
+          "x": 0.5266,
+          "y": 0.1564
+        }
+      ]
+    },
+    {
+      "regionId": "head",
+      "file": "parts/head.png",
+      "zIndex": 28,
+      "bounds": {
+        "x": 0.4131,
+        "y": 0.0249,
+        "w": 0.1982,
+        "h": 0.1387
+      },
+      "padding": 0.06,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "neck",
+          "x": 0.5266,
+          "y": 0.1564
+        }
+      ]
+    },
+    {
+      "regionId": "arm-right",
+      "file": "parts/arm-right.png",
+      "zIndex": 30,
+      "bounds": {
+        "x": 0.1602,
+        "y": 0.1836,
+        "w": 0.2578,
+        "h": 0.2319
+      },
+      "padding": 0.06,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "shoulder",
+          "x": 0.3689,
+          "y": 0.205
+        },
+        {
+          "id": "elbow",
+          "x": 0.1987,
+          "y": 0.3143
+        },
+        {
+          "id": "wrist",
+          "x": 0.3323,
+          "y": 0.3842
+        }
+      ]
+    },
+    {
+      "regionId": "arm-left",
+      "file": "parts/arm-left.png",
+      "zIndex": 32,
+      "bounds": {
+        "x": 0.627,
+        "y": 0.1909,
+        "w": 0.1846,
+        "h": 0.3003
+      },
+      "padding": 0.06,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "shoulder",
+          "x": 0.6724,
+          "y": 0.205
+        },
+        {
+          "id": "elbow",
+          "x": 0.7271,
+          "y": 0.3446
+        },
+        {
+          "id": "wrist",
+          "x": 0.7817,
+          "y": 0.4661
+        }
+      ]
+    },
+    {
+      "regionId": "hand-right",
+      "file": "parts/hand-right.png",
+      "zIndex": 34,
+      "bounds": {
+        "x": 0.2949,
+        "y": 0.3594,
+        "w": 0.2217,
+        "h": 0.064
+      },
+      "padding": 0.1,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "wrist",
+          "x": 0.3323,
+          "y": 0.3842
+        }
+      ]
+    },
+    {
+      "regionId": "hand-left",
+      "file": "parts/hand-left.png",
+      "zIndex": 36,
+      "bounds": {
+        "x": 0.7354,
+        "y": 0.4414,
+        "w": 0.1045,
+        "h": 0.1147
+      },
+      "padding": 0.1,
+      "skin": true,
+      "anchors": [
+        {
+          "id": "wrist",
+          "x": 0.7817,
+          "y": 0.4661
+        }
+      ]
+    }
+  ]
+}

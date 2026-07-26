@@ -2,7 +2,10 @@
   "id": "core",
   "name": "Starter Studio",
   "free": true,
-  "figures": ["mannequin-tpose", "standing-side", "standing-back", "bust-form"],
+  "figures": [
+    "mannequin-tpose", "standing-side", "standing-back", "bust-form",
+    "runway", "hand-on-hip", "bust-side", "twirl", "sitting", "croquis"
+  ],
   "skinTones": [
     "#f6e3d4", "#f1d3b7", "#eac198", "#ddab7e",
     "#cf9668", "#c08152", "#a96c42", "#916037",

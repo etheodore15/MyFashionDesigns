@@ -81,14 +81,33 @@ Tapping a filled region reopens its strokes, fully editable, forever.
 
 ## Figures
 
-Two hand-drawn technical flats: `mannequin-tpose` (Figure #1) and `bust-form`.
-Each is authored as ONE SVG and sliced by the build script — per-part
-generation is prohibited (§3). Parts share an identical transparent
-1024x2048 canvas and are tinted at runtime from twelve skin tones (parts are
-authored neutral greyscale). To add a figure: draw the SVG with
-`id="part-<regionId>" class="part"` groups, add its config to
-`scripts/build-figures.mjs`, list its id in a pack manifest, run
-`npm run build:figures`.
+Ten commissioned technical flats, delivered per `docs/figure-art-spec.md`:
+
+| Tier | Figures |
+|---|---|
+| 1 | `mannequin-tpose` · `standing-side` · `standing-back` · `bust-form` |
+| 2 | `runway` · `hand-on-hip` · `bust-side` |
+| 3 | `twirl` · `sitting` · `croquis` |
+
+Each arrives as a directory of per-layer 4096×8192 PNGs plus the artist's
+`qa.json` (stacking order and joint anchors), in `assets-src/figures/<id>/`.
+`npm run build:figures` slices them onto the app canvas, measures bounds from
+the alpha channel, writes the descriptor and anchors, and renders a
+figure-select preview by recompositing the sliced parts — which also proves
+the layers reassemble. Parts are authored neutral greyscale and tinted at
+runtime from twelve skin tones.
+
+**Adding a figure is drop-in:** put the delivered folder in
+`assets-src/figures/<id>/`, add a display name to `FIGURE_NAMES` in
+`scripts/build-figures.mjs`, list the id in a pack manifest, and rebuild.
+
+Layer PSDs are archived outside the repo (1.3 GB) and gitignored.
+
+**Known limitation:** the figure underlay rasterises at 1024×2048, so at deep
+pinch-zoom into a small region the *figure* line work softens. Drawings stay
+vector and always render crisp. Fixing it means loading a higher-resolution
+copy of the active region on demand — a real bundle-size trade-off, not yet
+made.
 
 > **§11 step 5 — STOP AND TEST**: with the loop working, put it in front of
 > real children before building anything else. Also test the hand-drawn line

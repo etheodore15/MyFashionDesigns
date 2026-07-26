@@ -5,3 +5,5 @@ dev-dist
 .DS_Store
 npm-debug.log*
 assets-src/preview/
+# Artist source PSDs are archived outside the repo (1.3 GB)
+assets-src/**/*.psd
