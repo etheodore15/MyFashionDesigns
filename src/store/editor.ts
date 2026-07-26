@@ -6,7 +6,7 @@ import { saveDesign } from '../db'
 import { tutorialEvent } from '../tutorial/bus'
 import type { FigureAdapter } from '../figure'
 import { regionsRect } from '../drawing/itemRenderer'
-import { mirrorStrokePoints, type AnchorPair } from '../drawing/mirror'
+import { mirrorStrokePoints, type Pt } from '../drawing/mirror'
 import { FIG_H, FIG_W } from '../drawing/itemRenderer'
 
 export type WidthChoice = 'S' | 'M' | 'L'
@@ -30,32 +30,39 @@ const ANCHOR_SOURCE: Partial<Record<RegionId, RegionId>> = {
   'hand-left': 'arm-left', 'hand-right': 'arm-right'
 }
 
-/** Joint anchors of the source regions matched to their mirrored partners. */
-function anchorPairsFor(adapter: FigureAdapter, sources: RegionId[], targets: RegionId[]): AnchorPair[] {
-  const pairs: AnchorPair[] = []
-  const add = (from: RegionId, to: RegionId) => {
-    const fromAnchors = adapter.getAnchors(from)
-    const toAnchors = adapter.getAnchors(to)
-    for (const id of new Set(fromAnchors.map((a) => a.id))) {
-      const f = fromAnchors.filter((a) => a.id === id)
-      const t = toAnchors.filter((a) => a.id === id)
-      for (let i = 0; i < Math.min(f.length, t.length); i++) {
-        pairs.push({ from: { x: f[i].x, y: f[i].y }, to: { x: t[i].x, y: t[i].y } })
-      }
+/**
+ * Matching joint chains for the mirrored regions, ordered along the limb
+ * (shoulder → elbow → wrist) so each bone maps onto its counterpart.
+ */
+function jointChains(adapter: FigureAdapter, sources: RegionId[], targets: RegionId[]) {
+  const from: Pt[] = []
+  const to: Pt[] = []
+  const add = (source: RegionId, target: RegionId) => {
+    const sourceAnchors = adapter.getAnchors(source)
+    const targetAnchors = adapter.getAnchors(target)
+    const seen = new Map<string, number>()
+    for (const anchor of sourceAnchors) {
+      const nth = seen.get(anchor.id) ?? 0
+      seen.set(anchor.id, nth + 1)
+      const match = targetAnchors.filter((a) => a.id === anchor.id)[nth]
+      if (!match) continue
+      from.push({ x: anchor.x, y: anchor.y })
+      to.push({ x: match.x, y: match.y })
     }
   }
   sources.forEach((source, i) => {
-    const target = targets[i]
-    if (target !== source) add(source, target)
+    if (targets[i] !== source) add(source, targets[i])
   })
-  if (pairs.length < 2) {
+  // A hand knows only its wrist — not enough to establish a limb axis, so
+  // borrow the arm it belongs to.
+  if (from.length < 2) {
     sources.forEach((source, i) => {
       const via = ANCHOR_SOURCE[source]
       const viaTarget = ANCHOR_SOURCE[targets[i]]
       if (via && viaTarget && via !== viaTarget) add(via, viaTarget)
     })
   }
-  return pairs
+  return { from, to }
 }
 
 interface EditorState {
@@ -387,13 +394,17 @@ export const useEditor = create<EditorState>((set, get) => {
       // Land the copy on the target limb's own axis. Without a figure adapter
       // (never the case in the app) fall back to a plain flip.
       const remap = adapter
-        ? (points: Stroke['points']) => mirrorStrokePoints(points, {
-            sourceRect: regionsRect(adapter, item.regionIds),
-            targetRect: regionsRect(adapter, targetRegions),
-            anchorPairs: anchorPairsFor(adapter, item.regionIds, targetRegions),
-            figW: FIG_W,
-            figH: FIG_H
-          })
+        ? (points: Stroke['points']) => {
+            const chains = jointChains(adapter, item.regionIds, targetRegions)
+            return mirrorStrokePoints(points, {
+              sourceRect: regionsRect(adapter, item.regionIds),
+              targetRect: regionsRect(adapter, targetRegions),
+              sourceJoints: chains.from,
+              targetJoints: chains.to,
+              figW: FIG_W,
+              figH: FIG_H
+            })
+          }
         : (points: Stroke['points']) =>
             points.map((p) => [1 - p[0], p[1], p[2]] as [number, number, number])
 

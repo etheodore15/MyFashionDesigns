@@ -2,130 +2,142 @@ import type { NormalisedRect } from '../model/types'
 
 // Mirroring a drawing to the other side of the body.
 //
-// Flipping the points inside their own region box is only correct when the
-// two limbs are posed identically. On an uneven pose — hand on hip, mid-
-// stride, twirling — the source and target boxes differ in size, shape and
-// angle, so a plain flip stretches the sleeve and drops it in the wrong
-// place. Instead we mirror in figure space and then fit the drawing onto the
-// target limb's own axis using the joint anchors (shoulder / elbow / wrist)
-// that ship with each figure.
+// Flipping points inside their own region box only works when both limbs are
+// posed identically. Fitting one rotation-and-scale over the whole limb is
+// not enough either: a hand-on-hip arm doubles back (shoulder → elbow out →
+// wrist in at the hip) while the other arm hangs almost straight, and no
+// single similarity maps a bent chain onto a straight one — the best fit
+// lands the drawing beside the arm rather than on it.
 //
-// The result is written as the copy's own region-local points, exactly as
-// before: the copy is a new item authored in the target region's space, and
-// its transform stays identity (Rule 2 untouched).
+// So we map along the limb's bones. Each stroke point is expressed relative
+// to the source bones — how far along, how far to the side — and rebuilt on
+// the matching target bones. Upper arm lands on upper arm, forearm on
+// forearm, whatever angle each is posed at. Contributions from the bones are
+// blended by proximity so a stroke crossing the elbow stays continuous.
+//
+// The result is written as the copy's own region-local points: the copy is a
+// new item authored in the target region's space with an identity transform
+// (Rule 2 untouched).
 
 export interface Pt { x: number; y: number }
-
-/** A matched joint, in figure-normalised coordinates. */
-export interface AnchorPair { from: Pt; to: Pt }
 
 export interface MirrorGeometry {
   sourceRect: NormalisedRect
   targetRect: NormalisedRect
-  /** Joint anchors of the source regions paired with the target regions. */
-  anchorPairs: AnchorPair[]
+  /**
+   * Matching joint chains, ordered along the limb (shoulder → elbow → wrist),
+   * in figure-normalised coordinates. Two or more joints enable bone mapping.
+   */
+  sourceJoints: Pt[]
+  targetJoints: Pt[]
   figW: number
   figH: number
 }
 
-/** Rotation + uniform scale + translation, in figure pixel space. */
-interface Similarity { a: number; b: number; cf: Pt; ct: Pt }
-
-const IDENTITY: Similarity = { a: 1, b: 0, cf: { x: 0, y: 0 }, ct: { x: 0, y: 0 } }
-const MIN_SCALE = 0.2
-const MAX_SCALE = 5
-
-const centroid = (pts: Pt[]): Pt => ({
-  x: pts.reduce((s, p) => s + p.x, 0) / pts.length,
-  y: pts.reduce((s, p) => s + p.y, 0) / pts.length
-})
+interface Bone { a: Pt; b: Pt; dir: Pt; perp: Pt; len: number }
 
 /**
- * Least-squares similarity taking `from` onto `to` (Umeyama, 2D). Reflection
- * is handled separately — the points are already mirrored — so this only
- * needs to recover rotation, uniform scale and translation.
+ * Blend falloff. Bones are combined by inverse distance so a stroke crossing
+ * a joint stays continuous, but the falloff has to be sharp: two bones of a
+ * bent limb map to very different places, so even a few percent of influence
+ * from the wrong bone visibly skews a drawing. A fourth-power falloff leaves
+ * the blend confined to roughly a joint's width.
  */
-function fitSimilarity(pairs: AnchorPair[]): Similarity {
-  if (pairs.length === 0) return IDENTITY
-  const cf = centroid(pairs.map((p) => p.from))
-  const ct = centroid(pairs.map((p) => p.to))
-  if (pairs.length === 1) return { a: 1, b: 0, cf, ct } // translation only
+const BLEND_EPS = 400 // px², ~20px
+const MIN_BONE = 1e-3
 
-  let dot = 0, cross = 0, norm = 0
-  for (const { from, to } of pairs) {
-    const ax = from.x - cf.x, ay = from.y - cf.y
-    const bx = to.x - ct.x, by = to.y - ct.y
-    dot += ax * bx + ay * by
-    cross += ax * by - ay * bx
-    norm += ax * ax + ay * ay
+function toBones(joints: Pt[], figW: number, figH: number): Bone[] {
+  const px = joints.map((j) => ({ x: j.x * figW, y: j.y * figH }))
+  const bones: Bone[] = []
+  for (let i = 0; i < px.length - 1; i++) {
+    const a = px[i]
+    const b = px[i + 1]
+    const len = Math.hypot(b.x - a.x, b.y - a.y)
+    if (len < MIN_BONE) continue
+    const dir = { x: (b.x - a.x) / len, y: (b.y - a.y) / len }
+    bones.push({ a, b, dir, perp: { x: -dir.y, y: dir.x }, len })
   }
-  if (norm < 1e-9) return { a: 1, b: 0, cf, ct }
-
-  let a = dot / norm
-  let b = cross / norm
-  // Guard against degenerate anchor data producing an absurd scale.
-  const scale = Math.hypot(a, b)
-  if (scale < MIN_SCALE || scale > MAX_SCALE || !Number.isFinite(scale)) {
-    const clamped = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale || 1))
-    const k = clamped / (scale || 1)
-    a *= k
-    b *= k
-  }
-  return { a, b, cf, ct }
+  return bones
 }
 
 /**
- * Fallback when the figure offers fewer than two matched joints: map the
- * mirrored source box onto the target box with a single uniform scale, so the
- * drawing keeps its proportions instead of being stretched to fit.
+ * Map a point from the source bones onto the target bones, mirrored.
+ *
+ * Negating the sideways offset is exactly what makes this a reflection: for a
+ * limb whose target is the mirror of its source, this reproduces the mirrored
+ * point precisely, so symmetric poses behave as they always did.
  */
-function fitFromRects(g: MirrorGeometry): Similarity {
+function mapThroughBones(p: Pt, source: Bone[], target: Bone[]): Pt {
+  let weight = 0
+  let x = 0
+  let y = 0
+  for (let i = 0; i < Math.min(source.length, target.length); i++) {
+    const s = source[i]
+    const t = target[i]
+    const relX = p.x - s.a.x
+    const relY = p.y - s.a.y
+    const along = (relX * s.dir.x + relY * s.dir.y) / s.len // 0 at start, 1 at end
+    const aside = relX * s.perp.x + relY * s.perp.y
+    const sideScale = t.len / s.len
+
+    const mx = t.a.x + along * (t.b.x - t.a.x) - aside * sideScale * t.perp.x
+    const my = t.a.y + along * (t.b.y - t.a.y) - aside * sideScale * t.perp.y
+
+    // Weight by distance to this bone, so each part of a stroke follows the
+    // bone it was drawn on.
+    const clamped = Math.min(1, Math.max(0, along))
+    const nearX = s.a.x + clamped * (s.b.x - s.a.x)
+    const nearY = s.a.y + clamped * (s.b.y - s.a.y)
+    const spread = (p.x - nearX) ** 2 + (p.y - nearY) ** 2 + BLEND_EPS
+    const w = 1 / (spread * spread)
+
+    weight += w
+    x += w * mx
+    y += w * my
+  }
+  return weight > 0 ? { x: x / weight, y: y / weight } : p
+}
+
+/**
+ * Fallback for regions with no usable joint chain (a foot knows only its
+ * ankle): reflect, then map box to box with a single uniform scale so the
+ * drawing keeps its proportions instead of being stretched.
+ */
+function mapThroughRects(p: Pt, g: MirrorGeometry): Pt {
   const { sourceRect: s, targetRect: t, figW, figH } = g
-  const mirroredX = 1 - (s.x + s.w)
-  const sw = Math.max(1e-6, s.w * figW), sh = Math.max(1e-6, s.h * figH)
-  const tw = t.w * figW, th = t.h * figH
-  const scale = Math.sqrt((tw / sw) * (th / sh))
-  const k = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale))
+  const sw = Math.max(1e-6, s.w * figW)
+  const sh = Math.max(1e-6, s.h * figH)
+  const scale = Math.min(5, Math.max(0.2, Math.sqrt(((t.w * figW) / sw) * ((t.h * figH) / sh))))
+  const mirroredCentreX = (1 - (s.x + s.w / 2)) * figW
+  const sourceCentreY = (s.y + s.h / 2) * figH
   return {
-    a: k,
-    b: 0,
-    cf: { x: (mirroredX + s.w / 2) * figW, y: (s.y + s.h / 2) * figH },
-    ct: { x: (t.x + t.w / 2) * figW, y: (t.y + t.h / 2) * figH }
-  }
-}
-
-function apply(p: Pt, s: Similarity): Pt {
-  const dx = p.x - s.cf.x
-  const dy = p.y - s.cf.y
-  return {
-    x: s.ct.x + s.a * dx - s.b * dy,
-    y: s.ct.y + s.b * dx + s.a * dy
+    x: (t.x + t.w / 2) * figW + (p.x - mirroredCentreX) * scale,
+    y: (t.y + t.h / 2) * figH + (p.y - sourceCentreY) * scale
   }
 }
 
 /**
  * Re-express region-local stroke points so the drawing lands on the mirrored
- * limb, following that limb's actual position and angle.
+ * limb, following that limb's own pose.
  */
 export function mirrorStrokePoints(
   points: [number, number, number][],
   g: MirrorGeometry
 ): [number, number, number][] {
-  const similarity = g.anchorPairs.length >= 2
-    ? fitSimilarity(g.anchorPairs.map(({ from, to }) => ({
-        // Mirror the source joint before fitting: the reflection is what makes
-        // this a mirror rather than a copy, and fitting the remainder keeps
-        // the drawing on the target limb.
-        from: { x: (1 - from.x) * g.figW, y: from.y * g.figH },
-        to: { x: to.x * g.figW, y: to.y * g.figH }
-      })))
-    : fitFromRects(g)
+  const sourceBones = toBones(g.sourceJoints, g.figW, g.figH)
+  const targetBones = toBones(g.targetJoints, g.figW, g.figH)
+  const useBones = sourceBones.length > 0 && targetBones.length > 0
 
   const { sourceRect: s, targetRect: t, figW, figH } = g
   return points.map(([px, py, pressure]) => {
-    const figureX = 1 - (s.x + px * s.w) // mirror across the figure's centre
+    const figureX = s.x + px * s.w
     const figureY = s.y + py * s.h
-    const moved = apply({ x: figureX * figW, y: figureY * figH }, similarity)
+    const source = { x: figureX * figW, y: figureY * figH }
+    // The bone path mirrors via the sideways offset; the rect path needs the
+    // reflection applied to the point itself first.
+    const moved = useBones
+      ? mapThroughBones(source, sourceBones, targetBones)
+      : mapThroughRects({ x: (1 - figureX) * figW, y: source.y }, g)
     return [
       (moved.x / figW - t.x) / t.w,
       (moved.y / figH - t.y) / t.h,
