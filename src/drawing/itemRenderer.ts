@@ -10,8 +10,13 @@ export const FIG_H = 2048
 /** The item's region rect: union of its regions' bounds. Stroke points are
  *  normalised within this rect and never leave it (Rule 2). */
 export function itemRect(adapter: FigureAdapter, item: Item): NormalisedRect {
+  return regionsRect(adapter, item.regionIds)
+}
+
+/** Union of the given regions' bounds. */
+export function regionsRect(adapter: FigureAdapter, regionIds: Item['regionIds']): NormalisedRect {
   let x0 = 1, y0 = 1, x1 = 0, y1 = 0
-  for (const r of item.regionIds) {
+  for (const r of regionIds) {
     const b = adapter.getBounds(r)
     x0 = Math.min(x0, b.x)
     y0 = Math.min(y0, b.y)

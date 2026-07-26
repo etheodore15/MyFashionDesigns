@@ -51,7 +51,12 @@ export default function DesignBoard() {
   useEffect(() => {
     if (!design) return
     let alive = true
-    void getFigureAdapter(design.figureId).then((a) => { if (alive) setAdapter(a) })
+    void getFigureAdapter(design.figureId).then((a) => {
+      if (!alive) return
+      setAdapter(a)
+      // Geometry-aware editing (mirroring across an uneven pose) needs it too.
+      useEditor.getState().setAdapter(a)
+    })
     return () => { alive = false }
   }, [design?.figureId]) // eslint-disable-line react-hooks/exhaustive-deps
 

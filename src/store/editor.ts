@@ -4,6 +4,10 @@ import { createDesign, createItem, createStroke, normaliseItem, uid } from '../m
 import type { CategoryDef } from '../model/categories'
 import { saveDesign } from '../db'
 import { tutorialEvent } from '../tutorial/bus'
+import type { FigureAdapter } from '../figure'
+import { regionsRect } from '../drawing/itemRenderer'
+import { mirrorStrokePoints, type AnchorPair } from '../drawing/mirror'
+import { FIG_H, FIG_W } from '../drawing/itemRenderer'
 
 export type WidthChoice = 'S' | 'M' | 'L'
 
@@ -17,8 +21,48 @@ export const REGION_MIRROR: Partial<Record<RegionId, RegionId>> = {
   'foot-left': 'foot-right', 'foot-right': 'foot-left'
 }
 
+/**
+ * Where to borrow joint anchors when a region carries too few of its own to
+ * establish an angle — a hand only knows its wrist, but the arm it belongs to
+ * knows the whole limb axis.
+ */
+const ANCHOR_SOURCE: Partial<Record<RegionId, RegionId>> = {
+  'hand-left': 'arm-left', 'hand-right': 'arm-right'
+}
+
+/** Joint anchors of the source regions matched to their mirrored partners. */
+function anchorPairsFor(adapter: FigureAdapter, sources: RegionId[], targets: RegionId[]): AnchorPair[] {
+  const pairs: AnchorPair[] = []
+  const add = (from: RegionId, to: RegionId) => {
+    const fromAnchors = adapter.getAnchors(from)
+    const toAnchors = adapter.getAnchors(to)
+    for (const id of new Set(fromAnchors.map((a) => a.id))) {
+      const f = fromAnchors.filter((a) => a.id === id)
+      const t = toAnchors.filter((a) => a.id === id)
+      for (let i = 0; i < Math.min(f.length, t.length); i++) {
+        pairs.push({ from: { x: f[i].x, y: f[i].y }, to: { x: t[i].x, y: t[i].y } })
+      }
+    }
+  }
+  sources.forEach((source, i) => {
+    const target = targets[i]
+    if (target !== source) add(source, target)
+  })
+  if (pairs.length < 2) {
+    sources.forEach((source, i) => {
+      const via = ANCHOR_SOURCE[source]
+      const viaTarget = ANCHOR_SOURCE[targets[i]]
+      if (via && viaTarget && via !== viaTarget) add(via, viaTarget)
+    })
+  }
+  return pairs
+}
+
 interface EditorState {
   design: Design | null
+  /** The loaded figure adapter, for geometry-aware operations like mirroring. */
+  adapter: FigureAdapter | null
+  setAdapter(adapter: FigureAdapter | null): void
   mode: 'board' | 'region'
   activeRegionId: RegionId | null
   activeItemId: string | null
@@ -109,6 +153,8 @@ export const useEditor = create<EditorState>((set, get) => {
 
   return {
     design: null,
+    adapter: null,
+    setAdapter(adapter) { set({ adapter }) },
     mode: 'board',
     activeRegionId: null,
     activeItemId: null,
@@ -331,24 +377,35 @@ export const useEditor = create<EditorState>((set, get) => {
     },
 
     mirrorItemToOtherSide(id) {
-      const { design } = get()
+      const { design, adapter } = get()
       const item = design?.items.find((i) => i.id === id)
       if (!design || !item) return
       const pair = REGION_MIRROR[item.primaryRegionId]
       if (!pair) return
+      const targetRegions = item.regionIds.map((r) => REGION_MIRROR[r] ?? r)
+
+      // Land the copy on the target limb's own axis. Without a figure adapter
+      // (never the case in the app) fall back to a plain flip.
+      const remap = adapter
+        ? (points: Stroke['points']) => mirrorStrokePoints(points, {
+            sourceRect: regionsRect(adapter, item.regionIds),
+            targetRect: regionsRect(adapter, targetRegions),
+            anchorPairs: anchorPairsFor(adapter, item.regionIds, targetRegions),
+            figW: FIG_W,
+            figH: FIG_H
+          })
+        : (points: Stroke['points']) =>
+            points.map((p) => [1 - p[0], p[1], p[2]] as [number, number, number])
+
       // A NEW item is created for the other side; the original's strokes are
-      // untouched. The copy's flipped points are its own canonical data.
+      // untouched. The copy's remapped points are its own canonical data.
       const copy: Item = {
         ...item,
         id: uid(),
         primaryRegionId: pair,
-        regionIds: item.regionIds.map((r) => REGION_MIRROR[r] ?? r),
+        regionIds: targetRegions,
         transform: { ...item.transform },
-        strokes: item.strokes.map((s) => ({
-          ...s,
-          id: uid(),
-          points: s.points.map((p) => [1 - p[0], p[1], p[2]] as [number, number, number])
-        }))
+        strokes: item.strokes.map((s) => ({ ...s, id: uid(), points: remap(s.points) }))
       }
       mutate((d) => {
         const idx = d.items.findIndex((i) => i.id === id)
