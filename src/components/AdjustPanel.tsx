@@ -1,4 +1,4 @@
-import { IconButton } from './ui'
+import { FrontBehindIcon, IconButton } from './ui'
 import { REGION_MIRROR, useEditor } from '../store/editor'
 
 /**
@@ -15,6 +15,7 @@ export default function AdjustPanel() {
   const move = useEditor((s) => s.moveItemInStack)
   const del = useEditor((s) => s.deleteItem)
   const mirror = useEditor((s) => s.mirrorItemToOtherSide)
+  const setItemBehind = useEditor((s) => s.setItemBehind)
   const close = useEditor((s) => s.setAdjustItem)
 
   const item = design?.items.find((i) => i.id === adjustItemId)
@@ -45,6 +46,12 @@ export default function AdjustPanel() {
           <IconButton icon="🔼" label="Bring forward" className="!w-11 !h-11" onClick={() => move(item.id, 1)} />
           <IconButton icon="🔽" label="Send back" className="!w-11 !h-11" onClick={() => move(item.id, -1)} />
         </div>
+        <IconButton
+          icon={<FrontBehindIcon behind={item.behindFigure} />}
+          label={item.behindFigure ? 'Behind the figure — tap to move in front' : 'In front of the figure — tap to move behind'}
+          active={item.behindFigure}
+          onClick={() => setItemBehind(item.id, !item.behindFigure)}
+        />
         {canMirror && (
           <IconButton icon="🪞" label="Mirror to other side" onClick={() => mirror(item.id)} />
         )}

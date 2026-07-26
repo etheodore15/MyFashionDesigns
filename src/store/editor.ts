@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Design, Item, RegionId, Stroke, StrokeTool } from '../model/types'
-import { createDesign, createItem, createStroke, uid } from '../model/factories'
+import { createDesign, createItem, createStroke, normaliseItem, uid } from '../model/factories'
 import type { CategoryDef } from '../model/categories'
 import { saveDesign } from '../db'
 import { tutorialEvent } from '../tutorial/bus'
@@ -71,6 +71,8 @@ interface EditorState {
   moveItemInStack(id: string, dir: 1 | -1): void
   reorderItem(id: string, toIndex: number): void
   toggleItemVisible(id: string): void
+  /** Move an item in front of / behind the figure. Available at any time. */
+  setItemBehind(id: string, behind: boolean): void
   deleteItem(id: string): void
   mirrorItemToOtherSide(id: string): void
 
@@ -136,8 +138,12 @@ export const useEditor = create<EditorState>((set, get) => {
 
     openDesign(design) {
       // Prune empty items left behind by abandoned region sessions (e.g. the
-      // app was closed before Done) so they don't clutter region popovers.
-      const cleaned = { ...design, items: design.items.filter((it) => it.strokes.length > 0) }
+      // app was closed before Done) so they don't clutter region popovers,
+      // and normalise items saved before newer fields existed.
+      const cleaned = {
+        ...design,
+        items: design.items.filter((it) => it.strokes.length > 0).map(normaliseItem)
+      }
       set({
         design: cleaned, mode: 'board', activeRegionId: null, activeItemId: null,
         optionsRegion: null, adjustItemId: null, layersOpen: false,
@@ -311,6 +317,11 @@ export const useEditor = create<EditorState>((set, get) => {
 
     toggleItemVisible(id) {
       mutateItem(id, (it) => ({ ...it, visible: !it.visible }))
+    },
+
+    setItemBehind(id, behind) {
+      // Compositing only — stroke points are untouched (Rule 2).
+      mutateItem(id, (it) => ({ ...it, behindFigure: behind }))
     },
 
     deleteItem(id) {

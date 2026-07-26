@@ -60,6 +60,13 @@ export interface Item {
   zIndex: number
   visible: boolean
   locked: boolean
+  /**
+   * Render this item behind the figure instead of on top of it — long hair
+   * falling behind the shoulders, a cape, a bag strap passing behind the
+   * body. Toggleable at any time; it changes compositing only, never the
+   * stored stroke points (Rule 2).
+   */
+  behindFigure: boolean
   strokes: Stroke[]
 }
 

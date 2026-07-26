@@ -1,13 +1,24 @@
-// Builds figure part PNGs + descriptors from the master SVGs in assets-src/figures.
+// Builds figure part PNGs + descriptors from the artwork in assets-src/figures.
+//
+// TWO SOURCE FORMATS, same output:
+//
+//  1. Commissioned art (see docs/figure-art-spec.md) — a directory of
+//     per-layer high-resolution PNGs, one per region, all sharing one canvas:
+//         assets-src/figures/<figureId>/<regionId>.png
+//     This is what the artist delivers; no vector round-trip needed.
+//
+//  2. The in-repo placeholder figures — a single master drawing whose named
+//     part groups this script isolates one at a time.
 //
 // Authoring rules honoured here (Build Brief v0.4 §3):
-//  - the whole figure is drawn ONCE per SVG; this script slices it into parts
-//  - every part is rendered onto the identical transparent 1024x2048 canvas
+//  - the whole figure is drawn ONCE, then separated into parts
+//  - every part lands on the identical transparent canvas; parts are never
+//    cropped to their content
 //  - output is PNG with alpha, at figures/<figureId>/parts/<regionId>.png
 //  - bounds are measured from the rendered alpha channel, so descriptors
 //    never drift from the artwork.
 import sharp from 'sharp'
-import { readFile, mkdir, writeFile } from 'node:fs/promises'
+import { readFile, mkdir, writeFile, access } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -16,7 +27,34 @@ const SRC = path.join(ROOT, 'assets-src', 'figures')
 const OUT = path.join(ROOT, 'src', 'packs', 'core', 'figures')
 const ICONS = path.join(ROOT, 'public', 'icons')
 
+/**
+ * Layout coordinate space of the descriptors, and the pixel size parts are
+ * written at. Stroke and layout maths are normalised against this, so raising
+ * it only changes part image sharpness (and bundle size), nothing else.
+ */
 const CANVAS = { width: 1024, height: 2048 }
+
+/** Region ids a full-body figure must provide (frozen taxonomy, §3). */
+const FULL_BODY_REGIONS = [
+  'legs-lower', 'legs-upper', 'foot-left', 'foot-right', 'hips', 'waist',
+  'torso', 'shoulders', 'neck', 'head', 'arm-right', 'arm-left',
+  'hand-right', 'hand-left'
+]
+
+/**
+ * Default part list for a full-body figure whose art has not arrived yet.
+ * zIndex follows the standard body stacking order; bounds are measured from
+ * the delivered art, and anchors can be filled in once it exists.
+ */
+function fullBodyParts() {
+  const SMALL = new Set(['foot-left', 'foot-right', 'hand-left', 'hand-right', 'head'])
+  return FULL_BODY_REGIONS.map((regionId, i) => ({
+    regionId,
+    zIndex: 10 + i * 2,
+    padding: SMALL.has(regionId) ? 0.1 : 0.06,
+    anchors: []
+  }))
+}
 
 /** @type {Record<string, {name: string, parts: Array<{regionId: string, zIndex: number, padding?: number, anchors?: Array<{id:string,x:number,y:number}>}>}>} */
 const FIGURES = {
@@ -39,6 +77,11 @@ const FIGURES = {
       { regionId: 'hand-left', zIndex: 28, padding: 0.1, anchors: [{ id: 'wrist', x: 0.889, y: 0.356 }] }
     ]
   },
+  // Commissioned poses. These build automatically as soon as their PNG layer
+  // directory lands in assets-src/figures/<id>/ — no code change needed.
+  // Until then the build skips them with a note.
+  'standing-side': { name: 'Side View', parts: fullBodyParts() },
+  'standing-back': { name: 'Back View', parts: fullBodyParts() },
   'bust-form': {
     name: 'Bust',
     parts: [
@@ -81,16 +124,52 @@ async function alphaBounds(pngBuffer) {
 
 const round = (v) => Math.round(v * 10000) / 10000
 
+const exists = (p) => access(p).then(() => true, () => false)
+
+/**
+ * Locate a figure's artwork. Commissioned PNG layer directories win over the
+ * in-repo placeholder drawings; returns null when neither is present so the
+ * build can skip a pose whose art hasn't arrived.
+ */
+async function resolveSource(figureId) {
+  const layerDir = path.join(SRC, figureId)
+  if (await exists(layerDir)) return { kind: 'png-layers', dir: layerDir }
+  const master = path.join(SRC, `${figureId}.svg`)
+  if (await exists(master)) return { kind: 'master', file: master }
+  return null
+}
+
+/**
+ * One part as a full-canvas transparent PNG. Delivered layers are already
+ * full-canvas (spec §5.2) so they only need resizing to the layout canvas;
+ * `fit: fill` preserves the shared frame exactly — never crop to content.
+ */
+async function renderPart(source, regionId, masterText) {
+  if (source.kind === 'png-layers') {
+    const file = path.join(source.dir, `${regionId}.png`)
+    if (!(await exists(file))) throw new Error(`missing layer PNG: ${regionId}.png`)
+    return sharp(file)
+      .resize(CANVAS.width, CANVAS.height, { fit: 'fill' })
+      .png()
+      .toBuffer()
+  }
+  return sharp(Buffer.from(isolatePart(masterText, regionId))).png().toBuffer()
+}
+
 async function buildFigure(figureId) {
   const cfg = FIGURES[figureId]
-  const svgText = await readFile(path.join(SRC, `${figureId}.svg`), 'utf8')
+  const source = await resolveSource(figureId)
+  if (!source) {
+    console.log(`${figureId}: skipped — no artwork in assets-src/figures yet`)
+    return false
+  }
+  const masterText = source.kind === 'master' ? await readFile(source.file, 'utf8') : null
   const partsDir = path.join(OUT, figureId, 'parts')
   await mkdir(partsDir, { recursive: true })
 
   const parts = []
   for (const part of cfg.parts) {
-    const svg = isolatePart(svgText, part.regionId)
-    const png = await sharp(Buffer.from(svg)).png().toBuffer()
+    const png = await renderPart(source, part.regionId, masterText)
     const bounds = await alphaBounds(png)
     await writeFile(path.join(partsDir, `${part.regionId}.png`), png)
     parts.push({
@@ -117,10 +196,21 @@ async function buildFigure(figureId) {
   }
   await writeFile(path.join(OUT, figureId, 'figure.json'), JSON.stringify(descriptor, null, 2))
 
-  // Full-figure preview (QA only, written to scratchpad-style preview dir).
+  // Full-figure preview (QA only): the parts recomposited in z-order, which
+  // also proves the layers reassemble into a complete figure.
   const previewDir = path.join(ROOT, 'assets-src', 'preview')
   await mkdir(previewDir, { recursive: true })
-  await sharp(Buffer.from(svgText)).resize(512, 1024).png().toFile(path.join(previewDir, `${figureId}.png`))
+  // Composite at full size first — sharp resizes before compositing within a
+  // single chain, which would shrink the base below the layers.
+  const ordered = [...parts].sort((a, b) => a.zIndex - b.zIndex)
+  const composited = await sharp({
+    create: { width: CANVAS.width, height: CANVAS.height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
+  })
+    .composite(ordered.map((p) => ({ input: path.join(OUT, figureId, p.file) })))
+    .png()
+    .toBuffer()
+  await sharp(composited).resize(512, 1024).png().toFile(path.join(previewDir, `${figureId}.png`))
+  return true
 }
 
 async function buildIcons() {
@@ -137,8 +227,9 @@ async function buildIcons() {
   }
 }
 
+let built = 0
 for (const figureId of Object.keys(FIGURES)) {
-  await buildFigure(figureId)
+  if (await buildFigure(figureId)) built++
 }
 await buildIcons()
-console.log('figures + icons built')
+console.log(`figures + icons built (${built}/${Object.keys(FIGURES).length} figures have artwork)`)

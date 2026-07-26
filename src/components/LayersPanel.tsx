@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Sheet, IconButton } from './ui'
+import { Sheet, IconButton, FrontBehindIcon } from './ui'
 import { useEditor } from '../store/editor'
 import { REGION_CATEGORIES } from '../model/categories'
 
@@ -17,6 +17,7 @@ export default function LayersPanel(props: { open: boolean; onClose: () => void 
   const reorderItem = useEditor((s) => s.reorderItem)
   const toggleVisible = useEditor((s) => s.toggleItemVisible)
   const deleteItem = useEditor((s) => s.deleteItem)
+  const setItemBehind = useEditor((s) => s.setItemBehind)
   const setAdjustItem = useEditor((s) => s.setAdjustItem)
   const editItem = useEditor((s) => s.editItem)
   const [dragId, setDragId] = useState<string | null>(null)
@@ -56,6 +57,12 @@ export default function LayersPanel(props: { open: boolean; onClose: () => void 
               <span className="text-2xl">{categoryIcon(item.category)}</span>
               <span className="capitalize text-sm text-ink/70">{item.category} · {item.primaryRegionId}</span>
             </button>
+            <IconButton
+              icon={<FrontBehindIcon behind={item.behindFigure} />}
+              label={item.behindFigure ? 'Behind the figure' : 'In front of the figure'}
+              active={item.behindFigure}
+              onClick={() => setItemBehind(item.id, !item.behindFigure)} className="!w-11 !h-11"
+            />
             <IconButton
               icon={item.visible ? '👁' : '🚫'} label={item.visible ? 'Hide' : 'Show'}
               onClick={() => toggleVisible(item.id)} className="!w-11 !h-11"

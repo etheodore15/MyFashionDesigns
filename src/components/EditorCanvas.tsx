@@ -37,6 +37,8 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow, insetL
     world: Konva.Group
     underlayNode: Konva.Image
     underlayCanvas: HTMLCanvasElement
+    /** Items marked behindFigure — sits below the figure underlay. */
+    behindGroup: Konva.Group
     itemsGroup: Konva.Group
     glowGroup: Konva.Group
     previewNode: Konva.Image
@@ -74,17 +76,18 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow, insetL
     underlayCanvas.height = FIG_H
     const underlayNode = new Konva.Image({ image: underlayCanvas, width: FIG_W, height: FIG_H })
     const glowGroup = new Konva.Group()
+    const behindGroup = new Konva.Group()
     const itemsGroup = new Konva.Group()
     const previewNode = new Konva.Image({ visible: false, image: undefined })
     const adjustRect = new Konva.Rect({
       stroke: '#e86fa4', strokeWidth: 6, dash: [18, 12], visible: false, cornerRadius: 12
     })
-    world.add(underlayNode, glowGroup, itemsGroup, previewNode, adjustRect)
+    world.add(behindGroup, underlayNode, glowGroup, itemsGroup, previewNode, adjustRect)
     layer.add(world)
     stage.add(layer)
 
     stateRef.current = {
-      stage, world, underlayNode, underlayCanvas, itemsGroup, glowGroup,
+      stage, world, underlayNode, underlayCanvas, behindGroup, itemsGroup, glowGroup,
       previewNode, previewCanvas: null, adjustRect, glowAnim: null, viewAnim: null,
       fitScale: 1, fitVRect: null
     }
@@ -231,7 +234,20 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow, insetL
     s.world.scaleX(mirrored ? -1 : 1)
     s.world.x(mirrored ? FIG_W : 0)
     s.underlayNode.image(s.underlayCanvas)
+    syncUnderlayOpacity()
     s.stage.batchDraw()
+  }
+
+  /**
+   * While drawing behind the figure, fade the figure so the child can see the
+   * strokes she is making underneath it. Full opacity everywhere else.
+   */
+  function syncUnderlayOpacity() {
+    const s = stateRef.current
+    if (!s) return
+    const { design, mode, activeItemId } = useEditor.getState()
+    const active = design?.items.find((i) => i.id === activeItemId)
+    s.underlayNode.opacity(mode === 'region' && active?.behindFigure ? 0.45 : 1)
   }
 
   /** Rebuild/refresh item nodes from the design (array order = layer stack). */
@@ -241,12 +257,21 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow, insetL
     const { design, mode, activeItemId } = useEditor.getState()
     if (!design) return
     const seen = new Set<string>()
-    design.items.forEach((item, index) => {
+    // Array order is the layer stack, but each side of the figure stacks
+    // independently, so behind/front items each get their own index run.
+    let behindIndex = 0
+    let frontIndex = 0
+    design.items.forEach((item) => {
       seen.add(item.id)
-      let node = s.itemsGroup.findOne<Konva.Image>(`#item-${item.id}`)
+      const group = item.behindFigure ? s.behindGroup : s.itemsGroup
+      const index = item.behindFigure ? behindIndex++ : frontIndex++
+      let node = s.behindGroup.findOne<Konva.Image>(`#item-${item.id}`)
+        ?? s.itemsGroup.findOne<Konva.Image>(`#item-${item.id}`)
       if (!node) {
         node = new Konva.Image({ id: `item-${item.id}`, image: undefined, listening: false })
-        s.itemsGroup.add(node)
+        group.add(node)
+      } else if (node.getParent() !== group) {
+        node.moveTo(group) // toggled front <-> behind
       }
       const rect = itemRect(adapter, item)
       const rendered = renderItem(item, rect)
@@ -265,11 +290,27 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow, insetL
       node.opacity(mode === 'region' && item.id !== activeItemId ? 0.4 : 1)
       node.zIndex(index)
     })
-    for (const node of [...s.itemsGroup.getChildren()]) {
+    for (const node of [...s.behindGroup.getChildren(), ...s.itemsGroup.getChildren()]) {
       const id = node.id().replace('item-', '')
       if (!seen.has(id)) node.destroy()
     }
+    syncUnderlayOpacity()
+    syncPreviewSide()
     s.stage.batchDraw()
+  }
+
+  /** The live stroke previews on the same side of the figure it will land on. */
+  function syncPreviewSide() {
+    const s = stateRef.current
+    if (!s) return
+    const { design, activeItemId } = useEditor.getState()
+    const active = design?.items.find((i) => i.id === activeItemId)
+    if (active?.behindFigure) {
+      if (s.previewNode.getParent() !== s.behindGroup) s.previewNode.moveTo(s.behindGroup)
+    } else if (s.previewNode.getParent() !== s.world) {
+      s.previewNode.moveTo(s.world)
+      s.adjustRect.moveToTop()
+    }
   }
 
   /** Drawable-area marker + preview canvas for the active item. */
@@ -304,6 +345,7 @@ export default function EditorCanvas({ adapter, onRegionTap, hotspotGlow, insetL
         y: (rect.y + space.y0 * rect.h) * FIG_H,
         width: extWpx, height: extHpx, visible: true
       })
+      syncPreviewSide()
       s.adjustRect.setAttrs({
         x: (rect.x + space.x0 * rect.w) * FIG_W,
         y: (rect.y + space.y0 * rect.h) * FIG_H,

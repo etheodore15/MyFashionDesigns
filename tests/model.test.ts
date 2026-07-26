@@ -14,7 +14,7 @@ vi.mock('../src/db', () => ({
   setMeta: vi.fn(async () => undefined)
 }))
 
-import { createDesign, createItem, createProfile } from '../src/model/factories'
+import { createDesign, createItem, createProfile, normaliseItem } from '../src/model/factories'
 import { IDENTITY_TRANSFORM } from '../src/model/types'
 import { deformModeFor } from '../src/model/categories'
 import { useEditor } from '../src/store/editor'
@@ -44,6 +44,37 @@ describe('Item invariants (§4)', () => {
     const item = createItem('torso', 'dress', ['torso', 'waist', 'hips'], 0)
     expect(item.regionIds).toEqual(['torso', 'waist', 'hips'])
     expect(item.primaryRegionId).toBe('torso')
+  })
+})
+
+describe('In front of / behind the figure', () => {
+  it('new items draw in front by default', () => {
+    expect(createItem('head', 'hair', [], 0).behindFigure).toBe(false)
+  })
+
+  it('normalises designs saved before the field existed', () => {
+    const legacy = createItem('head', 'hair', [], 0)
+    delete (legacy as Partial<typeof legacy>).behindFigure
+    expect(normaliseItem(legacy).behindFigure).toBe(false)
+  })
+
+  it('toggles without touching stroke points (Rule 2)', () => {
+    const s = useEditor.getState()
+    s.startDesign('p1', 'mannequin-tpose', '#eac198', false)
+    s.startItem('head', { id: 'hair', label: 'Hair', icon: '💇' })
+    s.addStroke([[0.3, 0.2, 0.5], [0.7, 0.8, 0.5]])
+    const item = useEditor.getState().design!.items[0]
+    const before = JSON.stringify(item.strokes.map((st) => st.points))
+
+    s.setItemBehind(item.id, true)
+    let after = useEditor.getState().design!.items.find((i) => i.id === item.id)!
+    expect(after.behindFigure).toBe(true)
+    expect(JSON.stringify(after.strokes.map((st) => st.points))).toBe(before)
+
+    s.setItemBehind(item.id, false)
+    after = useEditor.getState().design!.items.find((i) => i.id === item.id)!
+    expect(after.behindFigure).toBe(false)
+    expect(JSON.stringify(after.strokes.map((st) => st.points))).toBe(before)
   })
 })
 

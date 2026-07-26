@@ -44,17 +44,13 @@ AI-assisted output. Work is commissioned as a full rights transfer
   adult fashion-croquis proportions (no 9-head elongation, no exaggerated or
   sexualised anatomy). Slim-neutral mannequin silhouette; the child adds all
   character.
-- The two placeholder figures currently in the app
-  (`assets-src/figures/*.svg`) show the intended *construction* — your work
-  replaces their quality, keeps their spirit. Run `npm run build:figures` to
-  generate full-figure previews of them into `assets-src/preview/`.
 
 ## 3. Canvas & resolution
 
 | Property | Requirement |
 |---|---|
 | Canvas ratio | Portrait **1:2** (width : height), identical for every figure in the set |
-| Master resolution | **4096 × 8192 px** minimum (vector source preferred — see §6) |
+| Master resolution | **4096 × 8192 px** minimum |
 | Figure placement | Figure centred, filling ~92–96% of canvas height, feet near bottom edge |
 | Background | Fully transparent. Nothing outside the figure. No cropping of parts |
 
@@ -103,8 +99,15 @@ The bust figure uses 4: `head · neck · shoulders · torso` (the stand
 belongs in `torso`).
 
 Notes:
-- `left`/`right` are the **figure's anatomical** left/right (figure's left
-  arm appears on the viewer's right).
+- `left`/`right` are always the **figure's anatomical** left/right, never the
+  viewer's — so in a **front view** the figure's left arm appears on the
+  viewer's right, and in a **back view** it appears on the viewer's left.
+- In a **side view**, label by anatomy too: the arm and leg nearest the
+  viewer belong to whichever side is facing us. Both arms and both legs must
+  still exist as four separate layers even when the far limb is mostly
+  hidden — draw the visible sliver of the far limb (and where nothing of it
+  shows, deliver that layer as a fully transparent PNG rather than omitting
+  it).
 - `legs-upper` = both thighs in one layer; `legs-lower` = both calves.
 - `shoulders` = the trapezius/upper-chest yoke band between neck and chest.
 - `waist` = the band between ribcage and hips (roughly navel band).
@@ -132,20 +135,43 @@ Notes:
    hip, knee ×2, ankle ×2`. We record the coordinates, then discard the
    layer. It ships in the source file only.
 
+### 5.3 The figure is drawn on from both sides
+
+Children can place a drawing **in front of the figure or behind it**, and
+switch at any time — long hair falling behind the shoulders, a cape behind
+the body, a bag strap passing behind an arm. Two consequences for your art:
+
+- **Never bake a background into any layer.** Everything outside the
+  figure's own silhouette must be fully transparent, or it will hide the
+  child's behind-the-figure drawings.
+- **Clean alpha edges matter more than usual.** A white or dark halo that is
+  invisible against our cream background becomes obvious the moment a bright
+  drawing sits behind the figure. Export with straight (unpremultiplied)
+  alpha; no matting against a background colour.
+
 ## 6. Deliverables & file formats
 
-Per figure:
+Per figure, all three:
 
-1. **Layered source file** — SVG with named groups (preferred), or layered
-   AI / PSD / Procreate with the exact layer names above. Vector strongly
-   preferred: it keeps the hand-drawn line but scales forever.
-2. **Flattened full-figure PNG** at 4096 × 8192, transparent background
-   (for our records/QA).
-3. We do the per-part slicing, bounds measurement and app integration with
-   our build pipeline — you do not need to export individual parts if the
-   source layers are clean.
+1. **One PNG per layer, high resolution** — this is the deliverable the app
+   consumes directly, so it matters most:
+   - **4096 × 8192 px each**, 32-bit **PNG with alpha**, transparent background
+   - **Every layer exported on the identical full canvas.** Do not crop,
+     trim or auto-fit to content — a hand PNG is mostly empty space with the
+     hand in the correct position. Cropped exports break placement.
+   - Filenames are exactly the layer names in §5.1, lowercase:
+     `head.png`, `neck.png`, `shoulders.png`, `torso.png`, `waist.png`,
+     `hips.png`, `arm-left.png`, `arm-right.png`, `hand-left.png`,
+     `hand-right.png`, `legs-upper.png`, `legs-lower.png`, `foot-left.png`,
+     `foot-right.png`
+   - Delivered in one folder per figure, named for the figure id in §7:
+     `standing/head.png`, `standing/neck.png`, …
+2. **Layered source file** — PSD, TIFF, Procreate or Clip Studio, layers
+   named per §5.1 (so we can request edits without a redraw).
+3. **Flattened full-figure PNG** at 4096 × 8192, transparent (for QA).
 
-Naming: `figure-<id>-v<version>.<ext>`, e.g. `figure-standing-v2.svg`.
+We handle slicing, bounds measurement and app integration from deliverable
+1 — drop the folder in and the build takes it from there.
 
 ## 7. The set — poses to draw
 
@@ -156,50 +182,67 @@ Naming: `figure-<id>-v<version>.<ext>`, e.g. `figure-standing-v2.svg`.
 All poses: front-facing or near-front, feet visible, all 14 parts present
 and separable, no foreshortening extreme enough to hide a body part.
 
-**Tier 1 — replace current placeholders (start here)**
+**Tier 1 — the core set (start here).** These four ids are already wired
+into the app's build; delivering a folder named for the id is all it takes.
+
+| # | id (= folder name) | Pose |
+|---|---|---|
+| 1 | `mannequin-tpose` | **Front view.** Standing straight, weight even, arms out at ~30–40° from the body (A-pose), palms toward viewer, feet shoulder-width. The classic "dress me" mannequin. **This is the phone-test figure — deliver it first, alone.** |
+| 2 | `standing-side` | **Side view.** Same figure and proportions turned to a true profile (or a hair off, ~85°), arms slightly forward of the body so they read as separate from the torso. For coats, silhouettes, heels, hair length. Both arms and both legs are separate layers — see §5.1. |
+| 3 | `standing-back` | **Rear view.** Same figure and proportions from behind, arms out as in #1. For capes, back details, hair from behind, bag straps. Note `left`/`right` stay anatomical, so they swap sides on screen (§5.1). |
+| 4 | `bust-form` | Dress-form bust on a simple stand: head, neck, shoulders, torso ending at high hip with a gently curved hem; slender pole and base drawn in ink only. Larger head/torso scale for detail work (jewellery, collars, hair). Four layers only. |
+
+**Tier 2 — first pose pack** *(confirm before starting)*
 
 | # | id | Pose |
 |---|---|---|
-| 1 | `standing` | Standing straight, weight even, arms out at ~30–40° from the body (A-pose), palms toward viewer, feet shoulder-width. The classic "dress me" mannequin. **This is the phone-test figure — deliver it first.** |
-| 2 | `bust` | Dress-form bust on a simple stand: head, neck, shoulders, torso ending at high hip with a gently curved hem; slender pole and base drawn in ink only. Larger head/torso scale for detail work (jewellery, collars, hair). |
+| 5 | `runway` | Mid-stride runway walk, front view: one leg forward, arms swinging naturally, slight attitude in the shoulders. |
+| 6 | `hand-on-hip` | Standing, one hand on hip (elbow out), other arm relaxed; slight hip tilt. |
+| 7 | `bust-side` | The bust form in profile — pairs with #4 for collar and shoulder-line work. |
 
-**Tier 2 — first pose pack**
-
-| # | id | Pose |
-|---|---|---|
-| 3 | `runway` | Mid-stride runway walk, front view: one leg forward, arms swinging naturally, slight attitude in the shoulders. |
-| 4 | `hand-on-hip` | Standing, one hand on hip (elbow out), other arm relaxed; slight hip tilt. |
-| 5 | `back-view` | Standing back view, arms slightly out — for capes, back details, hair from behind. (Same 14 layers; `left/right` still the figure's anatomical sides.) |
-
-**Tier 3 — expression pack**
+**Tier 3 — expression pack** *(confirm before starting)*
 
 | # | id | Pose |
 |---|---|---|
-| 6 | `twirl` | Mid-twirl: arms raised/open, one foot lifted on pointe, body with gentle sway — made for skirts in motion. |
-| 7 | `sitting` | Seated on a simple drawn stool, hands on knees — calm pose for detailed work. Stool in ink only, no fill (like the bust stand). |
-| 8 | `croquis` | A taller 8.5-head fashion croquis, standing, subtle S-curve — for the older kids' "fashion basics" tutorial. Same style, slightly finer construction lines. |
+| 8 | `twirl` | Mid-twirl: arms raised/open, one foot lifted on pointe, body with gentle sway — made for skirts in motion. |
+| 9 | `sitting` | Seated on a simple drawn stool, hands on knees — calm pose for detailed work. Stool in ink only, no fill (like the bust stand). |
+| 10 | `croquis` | A taller 8.5-head fashion croquis, standing, subtle S-curve — for the older kids' "fashion basics" tutorial. Same style, slightly finer construction lines. |
 
 Every figure in the set must share: identical canvas, identical palette,
 consistent line weight and proportions (except `croquis`, which is
 deliberately taller), and the same layer vocabulary.
 
+**Front / side / back must be the same figure.** Tier 1 items 1–3 are one
+character seen from three angles: same height, same head size, same waist
+and hip level, same limb thickness. Line up the three views against each
+other before delivering — a child switching views should feel the figure
+turned around, not that three different people appeared.
+
 ## 8. Acceptance checklist (we QA against this)
 
 - [ ] Canvas 1:2, ≥4096 × 8192, transparent, figure ~92–96% of height
-- [ ] All layers present, named exactly per §5.1, nothing outside layers
-- [ ] Layers on = complete figure, pixel-identical to the flattened PNG
+- [ ] One PNG per layer, **every one on the full uncropped canvas**, named exactly per §5.1
+- [ ] Layer PNGs delivered in a folder named for the figure id (§7)
+- [ ] All layers present (including near-empty far limbs on side views); layered source file included
+- [ ] Layers stacked = complete figure, matching the flattened PNG
 - [ ] Composited in §5.2 stacking order: no gaps, no double outlines at any joint
 - [ ] Every joint overlap ≥80 px (at 8192 height)
 - [ ] Palette is exactly the three values in §4 (plus transparency); body fill one flat value
 - [ ] No shading/gradients/textures; no facial features
 - [ ] `anchors` layer present in source with all the joint crosses listed in §5.2 rule 5
-- [ ] Clean alpha edges — no white/dark halos when composited over any colour
+- [ ] Straight (unpremultiplied) alpha, no background baked in, no halo over dark or bright colours (§5.3)
 - [ ] Line weight readable on a 6″ phone at whole-figure zoom AND pleasant at 8× zoom-in (first figure gated on this test)
+- [ ] Front / side / back views line up as one character (§7)
 - [ ] Original work throughout; rights transfer signed
 
-## 9. Handy references in this repo
+## 9. How your files reach the app
 
-- `assets-src/figures/mannequin-tpose.svg` — placeholder Figure 1 (construction reference, not quality bar)
-- `assets-src/figures/bust-form.svg` — placeholder bust
-- `scripts/build-figures.mjs` — the slicer your layers feed into
-- Build Brief v0.4 §3 — binding art-style and authoring rules
+Drop the delivered folder in at `assets-src/figures/<figure-id>/` and run
+`npm run build:figures`. The pipeline slices each layer onto the app canvas,
+measures its bounds from the alpha channel, writes the figure descriptor and
+renders a recomposited preview so we can confirm the layers reassemble into a
+complete figure. No hand-editing of coordinates, and a pose whose art hasn't
+arrived is simply skipped.
+
+Also in this repo: `scripts/build-figures.mjs` (the slicer) and Build Brief
+v0.4 §3 (binding art-style and authoring rules).

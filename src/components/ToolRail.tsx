@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { IconButton } from './ui'
+import { FrontBehindIcon, IconButton } from './ui'
 import { useEditor } from '../store/editor'
 import { useApp } from '../store/app'
 import type { StrokeTool } from '../model/types'
@@ -31,6 +31,9 @@ export default function ToolRail(props: { onOpenColour: () => void; onDone: () =
   const canRedo = useEditor((s) => s.redoStack.length > 0)
   const clearItem = useEditor((s) => s.clearActiveItem)
   const hasTool = useApp((s) => s.hasTool)
+  const activeItemId = useEditor((s) => s.activeItemId)
+  const behind = useEditor((s) => s.design?.items.find((i) => i.id === s.activeItemId)?.behindFigure ?? false)
+  const setItemBehind = useEditor((s) => s.setItemBehind)
   const [shapesOpen, setShapesOpen] = useState(false)
 
   const isShape = SHAPES.some((s) => s.kind === tool)
@@ -76,6 +79,14 @@ export default function ToolRail(props: { onOpenColour: () => void; onDone: () =
         icon={widthChoice === 'S' ? '·' : widthChoice === 'M' ? '•' : '⬤'}
         label={`Line width ${widthChoice}`}
         onClick={() => setWidthChoice(widthChoice === 'S' ? 'M' : widthChoice === 'M' ? 'L' : 'S')}
+      />
+
+      {/* In front of / behind the figure — switchable at any time. */}
+      <IconButton
+        icon={<FrontBehindIcon behind={behind} />}
+        label={behind ? 'Drawing behind the figure — tap to draw in front' : 'Drawing in front of the figure — tap to draw behind'}
+        active={behind}
+        onClick={() => activeItemId && setItemBehind(activeItemId, !behind)}
       />
 
       <div className="h-px w-8 bg-ink/15 my-0.5" />

@@ -34,6 +34,21 @@ export function IconButton(props: {
 }
 
 /**
+ * Shows whether a drawing sits in front of or behind the figure: a body
+ * shape with a stroke crossing it, drawn over or under. Reads at a glance
+ * without words — the app requires no reading (§7).
+ */
+export function FrontBehindIcon({ behind }: { behind: boolean }) {
+  const body = <ellipse cx="12" cy="12" rx="5.5" ry="8" fill="#ddd5cc" stroke="#332d28" strokeWidth="1.6" />
+  const mark = <path d="M2.5 12 H21.5" stroke="#e86fa4" strokeWidth="3.4" strokeLinecap="round" />
+  return (
+    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden focusable="false">
+      {behind ? <>{mark}{body}</> : <>{body}{mark}</>}
+    </svg>
+  )
+}
+
+/**
  * Touch-tap ghost-click guard. On touch devices the tap that OPENS an
  * overlay is followed a few ms later by a synthesized compatibility `click`,
  * hit-tested against whatever is under the finger by then — i.e. the newly

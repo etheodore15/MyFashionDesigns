@@ -57,14 +57,7 @@ export function composeDesign(adapter: FigureAdapter, design: Design, opts: Comp
     ctx.scale(-1, 1)
   }
 
-  const figCanvas = document.createElement('canvas')
-  figCanvas.width = figW
-  figCanvas.height = figH
-  adapter.renderUnderlay(figCanvas.getContext('2d')!, design.figure.skinTone)
-  ctx.drawImage(figCanvas, 0, 0)
-
-  for (const item of design.items) {
-    if (!item.visible) continue
+  const drawItem = (item: (typeof design.items)[number]) => {
     const rect = itemRect(adapter, item)
     const rendered = renderItem(item, rect)
     const t = item.transform
@@ -85,6 +78,19 @@ export function composeDesign(adapter: FigureAdapter, design: Design, opts: Comp
     )
     ctx.restore()
   }
+
+  const visible = design.items.filter((i) => i.visible)
+  // Items marked behindFigure composite under the figure (hair falling behind
+  // the shoulders, a cape). Array order still decides stacking within each side.
+  for (const item of visible) if (item.behindFigure) drawItem(item)
+
+  const figCanvas = document.createElement('canvas')
+  figCanvas.width = figW
+  figCanvas.height = figH
+  adapter.renderUnderlay(figCanvas.getContext('2d')!, design.figure.skinTone)
+  ctx.drawImage(figCanvas, 0, 0)
+
+  for (const item of visible) if (!item.behindFigure) drawItem(item)
   ctx.restore()
   ctx.restore()
 

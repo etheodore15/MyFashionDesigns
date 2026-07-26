@@ -69,8 +69,17 @@ export function createItem(primaryRegionId: RegionId, category: string, regionId
     zIndex: defaultZBand(category) * 1000 + zTop,
     visible: true,
     locked: false,
+    behindFigure: false,
     strokes: []
   }
+}
+
+/**
+ * Designs saved before a field existed load without it. Normalising on read
+ * keeps every downstream consumer free of `?? default` noise.
+ */
+export function normaliseItem(item: Item): Item {
+  return item.behindFigure === undefined ? { ...item, behindFigure: false } : item
 }
 
 export function createStroke(tool: StrokeTool, colour: string, width: number, opacity: number, points: [number, number, number][]): Stroke {
